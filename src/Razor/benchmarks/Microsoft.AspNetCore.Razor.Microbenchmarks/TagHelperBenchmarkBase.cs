@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using MessagePack;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis.Razor.Serialization;
 using Newtonsoft.Json;
@@ -15,6 +16,7 @@ namespace Microsoft.AspNetCore.Razor.Microbenchmarks
     public abstract class TagHelperBenchmarkBase
     {
         protected readonly byte[] TagHelperBuffer;
+        protected readonly byte[] TagHelperMessagePackBuffer;
 
         public TagHelperBenchmarkBase()
         {
@@ -35,7 +37,9 @@ namespace Microsoft.AspNetCore.Razor.Microbenchmarks
             using var stream = new MemoryStream(TagHelperBuffer);
             using var reader = new JsonTextReader(new StreamReader(stream));
             DefaultTagHelpers = DefaultSerializer.Deserialize<IReadOnlyList<TagHelperDescriptor>>(reader);
-            TagHelperDescriptorJsonConverter.DisableCachingForTesting = false;
+            TagHelperDescriptorJsonConverter.DisableCachingForTesting = true;
+
+            TagHelperMessagePackBuffer = MessagePackSerializer.Serialize(typeof(IReadOnlyList<TagHelperDescriptor>), DefaultTagHelpers);
         }
 
         protected IReadOnlyList<TagHelperDescriptor> DefaultTagHelpers { get; set; }

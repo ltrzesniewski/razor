@@ -6,7 +6,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using MessagePack;
 using Microsoft.AspNetCore.Razor.Language;
 using Newtonsoft.Json;
 
@@ -14,7 +16,40 @@ namespace Microsoft.AspNetCore.Razor.Microbenchmarks
 {
     public class TagHelperSerializationBenchmark : TagHelperBenchmarkBase
     {
-        [Benchmark(Description = "Razor TagHelper Roundtrip Serialization")]
+        [Benchmark(Description = "(MessagePack) TagHelper Roundtrip Serialization")]
+        public async Task MessagePack_TagHelper_Serialization_RoundTripAsync()
+        {
+            // Serialize back to json.
+            MemoryStream originalStream;
+            using (originalStream = new MemoryStream())
+            {
+                await MessagePackSerializer.SerializeAsync(originalStream, DefaultTagHelpers).ConfigureAwait(false);
+            }
+
+            IReadOnlyList<TagHelperDescriptor> reDeserializedTagHelpers;
+            var stream = new MemoryStream(originalStream.GetBuffer());
+            using (stream)
+            {
+                reDeserializedTagHelpers = await MessagePackSerializer.DeserializeAsync<IReadOnlyList<TagHelperDescriptor>>(stream).ConfigureAwait(false);
+            }
+        }
+
+        [Benchmark(Description = "(MessagePack) TagHelper Serialization")]
+        public async Task MessagePack_TagHelper_SerializationAsync()
+        {
+            using var stream = new MemoryStream();
+            await MessagePackSerializer.SerializeAsync(stream, DefaultTagHelpers).ConfigureAwait(false);
+        }
+
+        [Benchmark(Description = "(MessagePack) TagHelper Deserialization")]
+        public async Task MessagePack_TagHelper_DeserializationAsync()
+        {
+            // Deserialize from json file.
+            using var stream = new MemoryStream(TagHelperMessagePackBuffer);
+            var tagHelpers = await MessagePackSerializer.DeserializeAsync<IReadOnlyList<TagHelperDescriptor>>(stream).ConfigureAwait(false);
+        }
+
+        [Benchmark(Description = "(Newtonsoft) TagHelper Roundtrip Serialization")]
         public void TagHelper_Serialization_RoundTrip()
         {
             // Serialize back to json.
@@ -34,7 +69,7 @@ namespace Microsoft.AspNetCore.Razor.Microbenchmarks
             }
         }
 
-        [Benchmark(Description = "Razor TagHelper Serialization")]
+        [Benchmark(Description = "(Newtonsoft) TagHelper Serialization")]
         public void TagHelper_Serialization()
         {
             using var stream = new MemoryStream();
@@ -42,7 +77,7 @@ namespace Microsoft.AspNetCore.Razor.Microbenchmarks
             DefaultSerializer.Serialize(writer, DefaultTagHelpers);
         }
 
-        [Benchmark(Description = "Razor TagHelper Deserialization")]
+        [Benchmark(Description = "(Newtonsoft) TagHelper Deserialization")]
         public void TagHelper_Deserialization()
         {
             // Deserialize from json file.
