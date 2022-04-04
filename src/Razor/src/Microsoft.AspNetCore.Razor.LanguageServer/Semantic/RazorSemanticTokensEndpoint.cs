@@ -10,6 +10,8 @@ using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using OmniSharp.Extensions.LanguageServer.Protocol.Client.Capabilities;
 using OmniSharp.Extensions.LanguageServer.Protocol.Document;
 using System.Diagnostics;
+using System.Collections.Generic;
+using Microsoft.VisualStudio.Text.Editor;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Semantic
 {
@@ -28,17 +30,28 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Semantic
 
         public async Task<SemanticTokens?> Handle(SemanticTokensRangeParams request!!, CancellationToken cancellationToken)
         {
-            var semanticTokens = await _semanticTokensInfoService.GetSemanticTokensAsync(request.TextDocument, request.Range, cancellationToken);
-            var amount = semanticTokens is null ? "no" : (semanticTokens.Data.Length / 5).ToString(Thread.CurrentThread.CurrentCulture);
-
-            _logger.LogInformation($"Returned {amount} semantic tokens for range {request.Range} in {request.TextDocument.Uri}.");
-
-            if (semanticTokens is not null)
+            var initialDocumentVersion = RazorDocumentSynchronizationEndpoint.LastDocumentVersion;
+            var wasRunning = RazorDocumentSynchronizationEndpoint.CurrentRunningVersion;
+            try
             {
-                Debug.Assert(semanticTokens.Data.Length % 5 == 0, $"Number of semantic token-ints should be divisible by 5. Actual number: {semanticTokens.Data.Length}");
-            }
+                var semanticTokens = await _semanticTokensInfoService.GetSemanticTokensAsync(request.TextDocument, request.Range, cancellationToken);
+                var amount = semanticTokens is null ? "no" : (semanticTokens.Data.Length / 5).ToString(Thread.CurrentThread.CurrentCulture);
 
-            return semanticTokens;
+                _logger.LogInformation($"Returned {amount} semantic tokens for range {request.Range} in {request.TextDocument.Uri}.");
+
+                if (semanticTokens is not null)
+                {
+                    Debug.Assert(semanticTokens.Data.Length % 5 == 0, $"Number of semantic token-ints should be divisible by 5. Actual number: {semanticTokens.Data.Length}");
+                }
+
+                return semanticTokens;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                var postDocumentVersion = RazorDocumentSynchronizationEndpoint.LastDocumentVersion;
+                Debugger.Launch();
+                throw;
+            }
         }
 
         public SemanticTokensRegistrationOptions GetRegistrationOptions(SemanticTokensCapability capability, ClientCapabilities clientCapabilities)

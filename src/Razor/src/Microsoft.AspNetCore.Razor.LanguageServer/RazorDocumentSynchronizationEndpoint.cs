@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -26,6 +27,11 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
         private readonly DocumentResolver _documentResolver;
         private readonly RazorProjectService _projectService;
 
+        public static int? LastDocumentVersion = null;
+        public static int? CurrentRunningVersion = null;
+        public static int? LastDocumentPreUpdateLength = null;
+        public static int? LastDocumentPostUpdateLength = null;
+
         public RazorDocumentSynchronizationEndpoint(
             ProjectSnapshotManagerDispatcher projectSnapshotManagerDispatcher!!,
             DocumentResolver documentResolver!!,
@@ -42,6 +48,14 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
 
         public async Task<Unit> Handle(DidChangeTextDocumentParams notification, CancellationToken token)
         {
+            if (CurrentRunningVersion != null)
+            {
+                Debugger.Launch();
+            }
+
+            CurrentRunningVersion = notification.TextDocument.Version!.Value;
+            LastDocumentVersion = CurrentRunningVersion.Value;
+
             var uri = notification.TextDocument.Uri.GetAbsoluteOrUNCPath();
             var document = await _projectSnapshotManagerDispatcher.RunOnDispatcherThreadAsync(() =>
             {
@@ -58,6 +72,9 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
             var sourceText = await document.GetTextAsync();
             sourceText = ApplyContentChanges(notification.ContentChanges, sourceText);
 
+            LastDocumentPostUpdateLength = null;
+            LastDocumentPreUpdateLength = sourceText.Lines.Count;
+
             if (notification.TextDocument.Version is null)
             {
                 throw new InvalidOperationException(RazorLS.Resources.Version_Should_Not_Be_Null);
@@ -66,6 +83,10 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
             await _projectSnapshotManagerDispatcher.RunOnDispatcherThreadAsync(
                 () => _projectService.UpdateDocument(document.FilePath, sourceText, notification.TextDocument.Version.Value),
                 CancellationToken.None).ConfigureAwait(false);
+
+            LastDocumentPostUpdateLength = sourceText.Lines.Count;
+
+            CurrentRunningVersion = null;
 
             return Unit.Value;
         }
