@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Razor.LanguageServer.Extensions;
+using Microsoft.AspNetCore.Razor.LanguageServer.JsonRpc;
 using Microsoft.AspNetCore.Razor.LanguageServer.ProjectSystem;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Text;
@@ -31,6 +32,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
         public static int? CurrentRunningVersion = null;
         public static int? LastDocumentPreUpdateLength = null;
         public static int? LastDocumentPostUpdateLength = null;
+        public static int? LastRunOnIteration = null;
 
         public RazorDocumentSynchronizationEndpoint(
             ProjectSnapshotManagerDispatcher projectSnapshotManagerDispatcher!!,
@@ -53,6 +55,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
                 Debugger.Launch();
             }
 
+            LastRunOnIteration = JsonRpcRequestScheduler.IterationCount;
             CurrentRunningVersion = notification.TextDocument.Version!.Value;
             LastDocumentVersion = CurrentRunningVersion.Value;
 

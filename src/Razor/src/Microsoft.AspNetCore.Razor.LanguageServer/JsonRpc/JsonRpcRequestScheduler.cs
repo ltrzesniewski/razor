@@ -17,6 +17,11 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.JsonRpc
         private readonly CancellationTokenSource _disposedCancellationTokenSource;
         private readonly ILogger<JsonRpcRequestScheduler> _logger;
 
+        public static int IterationCount = 0;
+        public static int LastDidChangeIteration = -1;
+        public static TaskStatus PreviousTaskStatusOnDidChange;
+        public static Task PreviousSemanticTask;
+
         public JsonRpcRequestScheduler(ILoggerFactory loggerFactory)
         {
             _disposedCancellationTokenSource = new CancellationTokenSource();
@@ -52,18 +57,34 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.JsonRpc
             {
                 while (!_disposedCancellationTokenSource.Token.IsCancellationRequested)
                 {
+                    var currentIteration = IterationCount++;
                     var work = await _queue.DequeueAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
 
                     _logger.LogDebug("Queueing {Type} {Identifier} request for processing", work.Type, work.Identifier);
 
                     if (work.Type == RequestProcessType.Serial)
                     {
+                        if (PreviousSemanticTask != null)
+                        {
+                            PreviousTaskStatusOnDidChange = PreviousSemanticTask.Status;
+                        }
+
+                        LastDidChangeIteration = currentIteration;
+
                         // Serial requests block other requests from starting to ensure up-to-date state is used.
                         await work.ProcessAsync(_disposedCancellationTokenSource.Token).ConfigureAwait(false);
                     }
                     else
                     {
-                        _ = Task.Run(() => work.ProcessAsync(_disposedCancellationTokenSource.Token), _disposedCancellationTokenSource.Token);
+                        var holder = Task.Run(async () => {
+                            var capturedIteration = currentIteration;
+                            await work.ProcessAsync(_disposedCancellationTokenSource.Token);
+                        }, _disposedCancellationTokenSource.Token);
+
+                        if (work.Identifier.Contains("semantic"))
+                        {
+                            PreviousSemanticTask = holder;
+                        }
                     }
                 }
             }
