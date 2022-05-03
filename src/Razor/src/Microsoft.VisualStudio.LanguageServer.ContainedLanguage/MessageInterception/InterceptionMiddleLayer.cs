@@ -53,11 +53,17 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage.MessageInterce
             // First send the request through.
             // We don't yet have a scenario where the request needs to be intercepted, but if one does come up, we may need to redesign the interception handshake
             // to handle both request and response interception.
-            var response = await sendRequest(methodParam);
-
-            if (response is not null && CanHandle(methodName))
+            var response = methodParam;
+            try
             {
-                response = await _interceptorManager.ProcessInterceptorsAsync(methodName, response, _contentType, CancellationToken.None);
+                response = await sendRequest(methodParam);
+            }
+            finally
+            {
+                if (response is not null && CanHandle(methodName))
+                {
+                    response = await _interceptorManager.ProcessInterceptorsAsync(methodName, response, _contentType, CancellationToken.None);
+                }
             }
 
             return response;
