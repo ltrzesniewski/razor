@@ -25,12 +25,12 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor.HtmlCSharp
         {
             Capabilities = new VSInternalServerCapabilities
             {
-                CompletionProvider = new CompletionOptions()
-                {
-                    AllCommitCharacters = new[] { " ", "{", "}", "[", "]", "(", ")", ".", ",", ":", ";", "+", "-", "*", "/", "%", "&", "|", "^", "!", "~", "=", "<", ">", "?", "@", "#", "'", "\"", "\\" },
-                    ResolveProvider = true,
-                    TriggerCharacters = CompletionHandler.AllTriggerCharacters.ToArray()
-                },
+                //CompletionProvider = new CompletionOptions()
+                //{
+                //    AllCommitCharacters = new[] { " ", "{", "}", "[", "]", "(", ")", ".", ",", ":", ";", "+", "-", "*", "/", "%", "&", "|", "^", "!", "~", "=", "<", ">", "?", "@", "#", "'", "\"", "\\" },
+                //    ResolveProvider = true,
+                //    TriggerCharacters = CompletionHandler.AllTriggerCharacters.ToArray()
+                //},
                 OnAutoInsertProvider = new VSInternalDocumentOnAutoInsertOptions()
                 {
                     TriggerCharacters = new[] { "'", "/", "\n", "=" }

@@ -15,6 +15,7 @@ using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using Range = OmniSharp.Extensions.LanguageServer.Protocol.Models.Range;
+using VSPosition = Microsoft.VisualStudio.LanguageServer.Protocol.Position;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer
 {
@@ -325,6 +326,18 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
 
             originalPosition = default;
             originalIndex = default;
+            return false;
+        }
+
+        public override bool TryMapToVSProjectedDocumentPosition(RazorCodeDocument codeDocument, int absoluteIndex, [NotNullWhen(true)] out VSPosition? projectedPosition, out int projectedIndex)
+        {
+            if (TryMapToProjectedDocumentPositionInternal(codeDocument, absoluteIndex, nextCSharpPositionOnFailure: false, out var omniSharpProjectedPosition, out projectedIndex))
+            {
+                projectedPosition = new VSPosition(omniSharpProjectedPosition.Line, omniSharpProjectedPosition.Character);
+                return true;
+            }
+
+            projectedPosition = default;
             return false;
         }
 

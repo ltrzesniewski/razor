@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
 using Position = OmniSharp.Extensions.LanguageServer.Protocol.Models.Position;
 using Range = OmniSharp.Extensions.LanguageServer.Protocol.Models.Range;
 using TextEdit = OmniSharp.Extensions.LanguageServer.Protocol.Models.TextEdit;
+using VSPosition = Microsoft.VisualStudio.LanguageServer.Protocol.Position;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer
 {
@@ -19,6 +20,8 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
         public abstract bool TryMapFromProjectedDocumentRange(RazorCodeDocument codeDocument, Range projectedRange, MappingBehavior mappingBehavior, [NotNullWhen(true)] out Range? originalRange);
 
         public abstract bool TryMapToProjectedDocumentRange(RazorCodeDocument codeDocument, Range originalRange, [NotNullWhen(true)] out Range? projectedRange);
+
+        public abstract bool TryMapToVSProjectedDocumentPosition(RazorCodeDocument codeDocument, int absoluteIndex, [NotNullWhen(true)] out VSPosition? projectedPosition, out int projectedIndex);
 
         public abstract bool TryMapFromProjectedDocumentPosition(RazorCodeDocument codeDocument, int csharpAbsoluteIndex, [NotNullWhen(true)] out Position? originalPosition, out int originalIndex);
 

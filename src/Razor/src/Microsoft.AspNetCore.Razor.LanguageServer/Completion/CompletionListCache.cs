@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis.Razor.Completion;
+using Microsoft.VisualStudio.LanguageServer.Protocol;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
 {
@@ -13,16 +15,16 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
         internal static readonly int MaxCacheSize = 3;
 
         private readonly object _accessLock;
-        private readonly List<(long, IReadOnlyList<RazorCompletionItem>)> _resultIdToCompletionList;
+        private readonly List<CompletionCacheEntry> _resultIdToCompletionList;
         private long _nextResultId;
 
         public CompletionListCache()
         {
             _accessLock = new object();
-            _resultIdToCompletionList = new List<(long, IReadOnlyList<RazorCompletionItem>)>();
+            _resultIdToCompletionList = new List<CompletionCacheEntry>();
         }
 
-        public long Set(IReadOnlyList<RazorCompletionItem> razorCompletionList)
+        public long Set(IReadOnlyList<RazorCompletionItem> razorCompletionList, DelegatedCompletionResult? delegatedCompletionResult)
         {
             if (razorCompletionList is null)
             {
@@ -39,32 +41,40 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
 
                 var resultId = _nextResultId++;
 
-                _resultIdToCompletionList.Add((resultId, razorCompletionList));
+                var cacheEntry = new CompletionCacheEntry(resultId, razorCompletionList, delegatedCompletionResult);
+                _resultIdToCompletionList.Add(cacheEntry);
 
                 // Return generated resultId so completion list can later be retrieved from cache
                 return resultId;
             }
         }
 
-        public bool TryGet(long resultId, out IReadOnlyList<RazorCompletionItem>? completionList)
+        public bool TryGet(
+            long resultId,
+            [NotNullWhen(true)] out IReadOnlyList<RazorCompletionItem>? razorCompletionList,
+            out DelegatedCompletionResult? delegatedCompletionResult)
         {
             lock (_accessLock)
             {
                 // Search back -> front because the items in the back are the most recently added which are most frequently accessed.
                 for (var i = _resultIdToCompletionList.Count - 1; i >= 0; i--)
                 {
-                    var (cachedResultId, cachedCompletionList) = _resultIdToCompletionList[i];
-                    if (cachedResultId == resultId)
+                    var cacheEntry = _resultIdToCompletionList[i];
+                    if (cacheEntry.ResultId == resultId)
                     {
-                        completionList = cachedCompletionList;
+                        razorCompletionList = cacheEntry.RazorCompletionList;
+                        delegatedCompletionResult = cacheEntry.DelegatedCompletionResult;
                         return true;
                     }
                 }
 
-                // A completion list associated with the given resultId was not found
-                completionList = null;
+                // Completion lists associated with the given resultId were not found
+                razorCompletionList = null;
+                delegatedCompletionResult = null;
                 return false;
             }
         }
+
+        private record CompletionCacheEntry(long ResultId, IReadOnlyList<RazorCompletionItem> RazorCompletionList, DelegatedCompletionResult? DelegatedCompletionResult);
     }
 }

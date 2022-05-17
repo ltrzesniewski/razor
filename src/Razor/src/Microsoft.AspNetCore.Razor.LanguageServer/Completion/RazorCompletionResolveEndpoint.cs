@@ -2,11 +2,12 @@
 // Licensed under the MIT license. See License.txt in the project root for license information.
 
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
+using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
 using Microsoft.AspNetCore.Razor.LanguageServer.Tooltip;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Razor.Completion;
@@ -22,7 +23,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
         private readonly LSPTagHelperTooltipFactory _lspTagHelperTooltipFactory;
         private readonly VSLSPTagHelperTooltipFactory _vsLspTagHelperTooltipFactory;
         private readonly CompletionListCache _completionListCache;
-        private VSInternalCompletionSetting? _completionCapability;
+        private readonly ClientNotifierServiceBase _languageServer;
         private VSInternalClientCapabilities? _clientCapabilities;
         private MarkupKind _documentationKind;
 
@@ -33,6 +34,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
             LSPTagHelperTooltipFactory lspTagHelperTooltipFactory,
             VSLSPTagHelperTooltipFactory vsLspTagHelperTooltipFactory,
             CompletionListCache completionListCache,
+            ClientNotifierServiceBase languageServer,
             ILoggerFactory loggerFactory)
         {
             if (lspTagHelperTooltipFactory is null)
@@ -50,6 +52,11 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
                 throw new ArgumentNullException(nameof(completionListCache));
             }
 
+            if (languageServer is null)
+            {
+                throw new ArgumentNullException(nameof(languageServer));
+            }
+
             if (loggerFactory is null)
             {
                 throw new ArgumentNullException(nameof(loggerFactory));
@@ -59,11 +66,11 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
             _vsLspTagHelperTooltipFactory = vsLspTagHelperTooltipFactory;
             _logger = loggerFactory.CreateLogger<RazorCompletionEndpoint>();
             _completionListCache = completionListCache;
+            _languageServer = languageServer;
         }
 
         public RegistrationExtensionResult? GetRegistration(VSInternalClientCapabilities clientCapabilities)
         {
-            _completionCapability = clientCapabilities.TextDocument?.Completion as VSInternalCompletionSetting;
             _clientCapabilities = clientCapabilities;
 
             var completionSupportedKinds = clientCapabilities.TextDocument?.Completion?.CompletionItem?.DocumentationFormat;
@@ -72,28 +79,37 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
             return null;
         }
 
-        public Task<VSInternalCompletionItem> Handle(VSCompletionItemBridge completionItemBridge, CancellationToken cancellationToken)
+        public async Task<VSInternalCompletionItem> Handle(VSCompletionItemBridge completionItemBridge, CancellationToken cancellationToken)
         {
             VSInternalCompletionItem completionItem = completionItemBridge;
 
+            var resolvedCompletionItem = TryResolveRazorCompletionItem(completionItem);
+            resolvedCompletionItem ??= await TryResolveDelegatedCompletionItemAsync(completionItem, cancellationToken).ConfigureAwait(false);
+            resolvedCompletionItem ??= completionItem;
+
+            return resolvedCompletionItem;
+        }
+
+        private VSInternalCompletionItem? TryResolveRazorCompletionItem(VSInternalCompletionItem completionItem)
+        {
             if (!completionItem.TryGetCompletionListResultId(out var resultId))
             {
                 // Couldn't resolve.
-                return Task.FromResult(completionItem);
+                return null;
             }
 
-            if (!_completionListCache.TryGet(resultId.Value, out var cachedCompletionItems))
+            if (!_completionListCache.TryGet(resultId.Value, out var razorCompletionList, out _))
             {
-                return Task.FromResult(completionItem);
+                return null;
             }
 
             var labelQuery = completionItem.Label;
-            var associatedRazorCompletion = cachedCompletionItems.FirstOrDefault(completion => string.Equals(labelQuery, completion.DisplayText, StringComparison.Ordinal));
+            var associatedRazorCompletion = razorCompletionList.FirstOrDefault(completion => string.Equals(labelQuery, completion.DisplayText, StringComparison.Ordinal));
             if (associatedRazorCompletion is null)
             {
-                _logger.LogError("Could not find an associated razor completion item. This should never happen since we were able to look up the cached completion list.");
-                Debug.Fail("Could not find an associated razor completion item. This should never happen since we were able to look up the cached completion list.");
-                return Task.FromResult(completionItem);
+                //_logger.LogError("Could not find an associated razor completion item. This should never happen since we were able to look up the cached completion list.");
+                //Debug.Fail("Could not find an associated razor completion item. This should never happen since we were able to look up the cached completion list.");
+                return null;
             }
 
             // If the client is VS, also fill in the Description property.
@@ -138,7 +154,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
                         {
                             _vsLspTagHelperTooltipFactory.TryCreateTooltip(descriptionInfo, out tagHelperClassifiedTextTooltip);
                         }
-                        else 
+                        else
                         {
                             _lspTagHelperTooltipFactory.TryCreateTooltip(descriptionInfo, _documentationKind, out tagHelperMarkupTooltip);
                         }
@@ -176,7 +192,51 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
                 completionItem.Description = tagHelperClassifiedTextTooltip;
             }
 
-            return Task.FromResult(completionItem);
+            return completionItem;
+        }
+
+        private async Task<VSInternalCompletionItem?> TryResolveDelegatedCompletionItemAsync(VSInternalCompletionItem completionItem, CancellationToken cancellationToken)
+        {
+            if (!completionItem.TryGetCompletionListResultId(out var resultId))
+            {
+                // Couldn't resolve.
+                return null;
+            }
+
+            if (!_completionListCache.TryGet(resultId.Value, out _, out var delegatedCompletionResult))
+            {
+                return null;
+            }
+
+            if (delegatedCompletionResult is null)
+            {
+                return null;
+            }
+
+            var delegatedCompletionList = delegatedCompletionResult.CompletionList;
+
+            if (delegatedCompletionList is null)
+            {
+                return null;
+            }
+
+            var labelQuery = completionItem.Label;
+            var associatedDelegatedCompletion = delegatedCompletionList.Items.FirstOrDefault(completion => string.Equals(labelQuery, completion.Label, StringComparison.Ordinal));
+            if (associatedDelegatedCompletion is null)
+            {
+                return null;
+            }
+
+            var originalCompletionParams = delegatedCompletionResult.DelegationParams;
+
+            completionItem.Data = associatedDelegatedCompletion.Data ?? delegatedCompletionResult?.CompletionList?.Data;
+            var delegatedParams = new DelegatedCompletionItemResolveParams(
+                completionItem,
+                originalCompletionParams.Kind,
+                originalCompletionParams.HostDocument.Uri);
+            var delegatedRequest = await _languageServer.SendRequestAsync(LanguageServerConstants.RazorCompletionResolveEndpointName, delegatedParams).ConfigureAwait(false);
+            var resolvedCompletionItem = await delegatedRequest.Returning<VSInternalCompletionItem?>(cancellationToken).ConfigureAwait(false);
+            return resolvedCompletionItem;
         }
     }
 }

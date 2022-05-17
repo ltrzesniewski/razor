@@ -14,8 +14,8 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
     {
         private const string ResultIdKey = "_resultId";
 
-        public static VSInternalCompletionItem CreateWithCompletionListResultId(
-            this VSInternalCompletionItem completionItem,
+        public static void SetResultId(
+            this CompletionItem completionItem,
             long resultId)
         {
             if (completionItem is null)
@@ -23,24 +23,35 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
                 throw new ArgumentNullException(nameof(completionItem));
             }
 
-            var data = completionItem.Data as JObject ?? new JObject();
-            data[ResultIdKey] = resultId;
-            completionItem.Data = data;
-
-            return completionItem;
+            var data = new JObject()
+            {
+                [ResultIdKey] = resultId,
+            };
+            var mergedData = CompletionListMerger.MergeData(data, completionItem.Data);
+            completionItem.Data = mergedData;
         }
 
-        public static bool TryGetCompletionListResultId(this VSInternalCompletionItem completion, [NotNullWhen(true)] out int? resultId)
+        public static bool TryGetCompletionListResultId(this CompletionItem completion, [NotNullWhen(true)] out int? resultId)
         {
             if (completion is null)
             {
                 throw new ArgumentNullException(nameof(completion));
             }
 
-            if (completion.Data is JObject data && data.ContainsKey(ResultIdKey))
+            if (!CompletionListMerger.TrySplit(completion.Data, out var splitData))
             {
-                resultId = data[ResultIdKey]?.ToObject<int>();
-                return resultId is not null;
+                resultId = default;
+                return false;
+            }
+
+            for (var i = 0; i < splitData.Count; i++)
+            {
+                var data = splitData[i];
+                if (data.ContainsKey(ResultIdKey))
+                {
+                    resultId = data[ResultIdKey]?.ToObject<int>();
+                    return resultId is not null;
+                }
             }
 
             resultId = default;

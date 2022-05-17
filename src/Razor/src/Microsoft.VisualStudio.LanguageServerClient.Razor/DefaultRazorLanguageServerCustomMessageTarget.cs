@@ -502,6 +502,194 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
             return colorInformation;
         }
 
+        public override async Task<JToken?> ProvideCompletionsAsync(
+            DelegatedCompletionParams request,
+            CancellationToken cancellationToken)
+        {
+            var hostDocumentUri = request.HostDocument.Uri;
+            if (!_documentManager.TryGetDocument(hostDocumentUri, out var documentSnapshot))
+            {
+                return null;
+            }
+
+            string languageServerName;
+            Uri projectedUri;
+            VirtualDocumentSnapshot virtualDocumentSnapshot;
+            if (request.Kind == RazorLanguageKind.Html &&
+                documentSnapshot.TryGetVirtualDocument<HtmlVirtualDocumentSnapshot>(out var htmlVirtualDocument))
+            {
+                languageServerName = RazorLSPConstants.HtmlLanguageServerName;
+                projectedUri = htmlVirtualDocument.Uri;
+                virtualDocumentSnapshot = htmlVirtualDocument;
+            }
+            else if (request.Kind == RazorLanguageKind.CSharp &&
+                documentSnapshot.TryGetVirtualDocument<CSharpVirtualDocumentSnapshot>(out var csharpVirtualDocument))
+            {
+                languageServerName = RazorLSPConstants.RazorCSharpLanguageServerName;
+                projectedUri = csharpVirtualDocument.Uri;
+                virtualDocumentSnapshot = csharpVirtualDocument;
+            }
+            else
+            {
+                Debug.Fail("Unexpected RazorLanguageKind. This can't really happen in a real scenario.");
+                return null;
+            }
+
+            var synchronized = await _documentSynchronizer.TrySynchronizeVirtualDocumentAsync(
+                request.HostDocumentVersion, virtualDocumentSnapshot, rejectOnNewerParallelRequest: false, cancellationToken);
+
+            if (!synchronized)
+            {
+                return null;
+            }
+
+            var completionContext = new CompletionContext()
+            {
+                TriggerCharacter = request.Context?.TriggerCharacter,
+                TriggerKind = request.Context?.TriggerKind ?? CompletionTriggerKind.Invoked,
+            };
+            var completionParams = new CompletionParams()
+            {
+                Context = completionContext,
+                Position = new Position(request.Position.Line, request.Position.Character),
+                TextDocument = new TextDocumentIdentifier()
+                {
+                    Uri = projectedUri,
+                },
+            };
+
+            var provisionalTextEdit = request.ProvisionalTextEdit;
+            if (provisionalTextEdit != null)
+            {
+                await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+                var provisionalChange = new VisualStudioTextChange(request.ProvisionalTextEdit, virtualDocumentSnapshot.Snapshot);
+                UpdateVirtualDocument(provisionalChange, request.Kind, request.HostDocumentVersion, documentSnapshot.Uri);
+            }
+
+            try
+            {
+                var continueOnCapturedContext = provisionalTextEdit != null;
+                var textBuffer = virtualDocumentSnapshot.Snapshot.TextBuffer;
+                var response = await _requestInvoker.ReinvokeRequestOnServerAsync<CompletionParams, JToken?>(
+                    textBuffer,
+                    Methods.TextDocumentCompletion.Name,
+                    languageServerName,
+                    completionParams,
+                    cancellationToken).ConfigureAwait(continueOnCapturedContext);
+                return response?.Response;
+            }
+            finally
+            {
+                if (provisionalTextEdit != null)
+                {
+                    var revertedProvisionalTextEdit = BuildRevertedEdit(provisionalTextEdit);
+
+                    var revertedProvisionalChange = new VisualStudioTextChange(revertedProvisionalTextEdit, virtualDocumentSnapshot.Snapshot);
+                    UpdateVirtualDocument(revertedProvisionalChange, request.Kind, request.HostDocumentVersion, documentSnapshot.Uri);
+                }
+            }
+        }
+
+        public override async Task<JToken?> ProvideResolvedCompletionItemAsync(DelegatedCompletionItemResolveParams request, CancellationToken cancellationToken)
+        {
+            var hostDocumentUri = request.HostDocumentUri;
+            if (!_documentManager.TryGetDocument(hostDocumentUri, out var documentSnapshot))
+            {
+                return null;
+            }
+
+            string languageServerName;
+            VirtualDocumentSnapshot virtualDocumentSnapshot;
+            if (request.Kind == RazorLanguageKind.Html &&
+                documentSnapshot.TryGetVirtualDocument<HtmlVirtualDocumentSnapshot>(out var htmlVirtualDocument))
+            {
+                languageServerName = RazorLSPConstants.HtmlLanguageServerName;
+                virtualDocumentSnapshot = htmlVirtualDocument;
+            }
+            else if (request.Kind == RazorLanguageKind.CSharp &&
+                documentSnapshot.TryGetVirtualDocument<CSharpVirtualDocumentSnapshot>(out var csharpVirtualDocument))
+            {
+                languageServerName = RazorLSPConstants.RazorCSharpLanguageServerName;
+                virtualDocumentSnapshot = csharpVirtualDocument;
+            }
+            else
+            {
+                Debug.Fail("Unexpected RazorLanguageKind. This can't really happen in a real scenario.");
+                return null;
+            }
+
+            var completionResolveParams = request.CompletionItem;
+
+            var textBuffer = virtualDocumentSnapshot.Snapshot.TextBuffer;
+            var response = await _requestInvoker.ReinvokeRequestOnServerAsync<VSInternalCompletionItem, JToken?>(
+                textBuffer,
+                Methods.TextDocumentCompletionResolve.Name,
+                languageServerName,
+                completionResolveParams,
+                cancellationToken).ConfigureAwait(false);
+            return response?.Response;
+        }
+
+        private static TextEdit BuildRevertedEdit(TextEdit provisionalTextEdit)
+        {
+            TextEdit? revertedProvisionalTextEdit;
+            if (provisionalTextEdit.Range.Start == provisionalTextEdit.Range.End)
+            {
+                // Insertion
+                revertedProvisionalTextEdit = new TextEdit()
+                {
+                    Range = new Range()
+                    {
+                        Start = provisionalTextEdit.Range.Start,
+                        // We're making an assumption that provisional text edits do not span more than 1 line.
+                        End = new Position(provisionalTextEdit.Range.End.Line, provisionalTextEdit.Range.End.Character + provisionalTextEdit.NewText.Length),
+                    },
+                    NewText = string.Empty
+                };
+            }
+            else
+            {
+                // Replace
+                revertedProvisionalTextEdit = new TextEdit()
+                {
+                    Range = provisionalTextEdit.Range,
+                    NewText = string.Empty
+                };
+            }
+
+            return revertedProvisionalTextEdit;
+        }
+
+        private void UpdateVirtualDocument(
+            VisualStudioTextChange textChange,
+            RazorLanguageKind virtualDocumentKind,
+            int hostDocumentVersion,
+            Uri documentSnapshotUri)
+        {
+            if (_documentManager is not TrackingLSPDocumentManager trackingDocumentManager)
+            {
+                return;
+            }
+
+            if (virtualDocumentKind == RazorLanguageKind.CSharp)
+            {
+                trackingDocumentManager.UpdateVirtualDocument<CSharpVirtualDocument>(
+                    documentSnapshotUri,
+                    new[] { textChange },
+                    hostDocumentVersion,
+                    state: null);
+            }
+            else if (virtualDocumentKind == RazorLanguageKind.Html)
+            {
+                trackingDocumentManager.UpdateVirtualDocument<HtmlVirtualDocument>(
+                    documentSnapshotUri,
+                    new[] { textChange },
+                    hostDocumentVersion,
+                    state: null);
+            }
+        }
+
         private CSharpVirtualDocumentSnapshot? GetCSharpDocumentSnapshsot(Uri uri)
         {
             var normalizedString = uri.GetAbsoluteOrUNCPath();

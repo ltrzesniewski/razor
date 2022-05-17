@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Razor.LanguageServer.Extensions;
 using Microsoft.AspNetCore.Razor.LanguageServer.ProjectSystem;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Razor.Completion;
+using Microsoft.CodeAnalysis.Razor.ProjectSystem;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 
@@ -22,11 +23,17 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
 {
     internal class RazorCompletionEndpoint : IVSCompletionEndpoint
     {
+        private static readonly VSInternalCompletionList s_EmptyCompletionList = new VSInternalCompletionList()
+        {
+            Items = Array.Empty<CompletionItem>(),
+        };
         private readonly ILogger _logger;
         private readonly ProjectSnapshotManagerDispatcher _projectSnapshotManagerDispatcher;
         private readonly DocumentResolver _documentResolver;
         private readonly RazorCompletionFactsService _completionFactsService;
         private readonly CompletionListCache _completionListCache;
+        private readonly DelegatedCompletionService _delegatedCompletionService;
+        private readonly DocumentVersionCache _documentVersionCache;
         private static readonly Command s_retriggerCompletionCommand = new()
         {
             CommandIdentifier = "editor.action.triggerSuggest",
@@ -39,6 +46,8 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
             DocumentResolver documentResolver,
             RazorCompletionFactsService completionFactsService,
             CompletionListCache completionListCache,
+            DelegatedCompletionService delegatedCompletionService,
+            DocumentVersionCache documentVersionCache,
             ILoggerFactory loggerFactory)
         {
             if (projectSnapshotManagerDispatcher is null)
@@ -71,6 +80,8 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
             _completionFactsService = completionFactsService;
             _logger = loggerFactory.CreateLogger<RazorCompletionEndpoint>();
             _completionListCache = completionListCache;
+            _delegatedCompletionService = delegatedCompletionService;
+            _documentVersionCache = documentVersionCache;
         }
 
         public RegistrationExtensionResult? GetRegistration(VSInternalClientCapabilities clientCapabilities)
@@ -82,8 +93,8 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
             var registrationOptions = new CompletionOptions()
             {
                 ResolveProvider = true,
-                TriggerCharacters = new[] { "@", "<", ":" },
-                AllCommitCharacters = new[] { ":", ">", " ", "=" },
+                TriggerCharacters = new[] { "@", "<", ":", "." },
+                AllCommitCharacters = new[] { " ", "{", "}", "[", "]", "(", ")", ".", ",", ":", ";", "+", "-", "*", "/", "%", "&", "|", "^", "!", "~", "=", "<", ">", "?", "@", "#", "'", "\"", "\\" },
             };
 
             return new RegistrationExtensionResult(AssociatedServerCapability, registrationOptions);
@@ -91,18 +102,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
 
         public async Task<VSInternalCompletionList?> Handle(VSCompletionParamsBridge request, CancellationToken cancellationToken)
         {
-            var document = await _projectSnapshotManagerDispatcher.RunOnDispatcherThreadAsync(() =>
-            {
-                _documentResolver.TryResolveDocument(request.TextDocument.Uri.GetAbsoluteOrUNCPath(), out var documentSnapshot);
-
-                return documentSnapshot;
-            }, cancellationToken).ConfigureAwait(false);
-
-            if (document is null || cancellationToken.IsCancellationRequested)
+            var documentAndSnapshot = await TryGetDocumentSnapshotAndVersionAsync(request.TextDocument.Uri.GetAbsoluteOrUNCPath(), cancellationToken).ConfigureAwait(false);
+            if (documentAndSnapshot is null || cancellationToken.IsCancellationRequested)
             {
                 return null;
             }
 
+            var document = documentAndSnapshot.Snapshot;
             if (request.Context is null || !IsApplicableTriggerContext(request.Context))
             {
                 return null;
@@ -134,13 +140,19 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
             var completionOptions = new RazorCompletionOptions(SnippetsSupported: true);
             var completionContext = new RazorCompletionContext(syntaxTree, tagHelperDocumentContext, reason, completionOptions);
 
-            var razorCompletionItems = _completionFactsService.GetCompletionItems(completionContext, location);
+            var razorCompletionItems = _completionFactsService.GetCompletionItems(completionContext, location) ?? Array.Empty<RazorCompletionItem>();
 
             _logger.LogTrace($"Resolved {razorCompletionItems.Count} completion items.");
-
-            var completionList = CreateLSPCompletionList(razorCompletionItems);
-
-            return completionList;
+            var delegatedCompletionResult = await _delegatedCompletionService.GetCompletionListAsync(request, document, documentAndSnapshot.Version, cancellationToken).ConfigureAwait(false);
+            var resultId = _completionListCache.Set(razorCompletionItems, delegatedCompletionResult);
+            var razorCompletionList = CreateLSPCompletionList(razorCompletionItems);
+            var delegatedCompletionList = delegatedCompletionResult?.CompletionList ?? s_EmptyCompletionList;
+            var completionCapability = _clientCapabilities?.TextDocument?.Completion as VSInternalCompletionSetting;
+            razorCompletionList.SetResultId(resultId, completionCapability);
+            
+            var optimizedRazorCompletionList = CompletionListOptimizer.Optimize(razorCompletionList, completionCapability);
+            var mergedCompletionList = CompletionListMerger.Merge(delegatedCompletionList, optimizedRazorCompletionList);
+            return mergedCompletionList;
         }
 
         // Internal for testing
@@ -164,22 +176,19 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
         }
 
         // Internal for testing
-        internal VSInternalCompletionList CreateLSPCompletionList(IReadOnlyList<RazorCompletionItem> razorCompletionItems) => CreateLSPCompletionList(razorCompletionItems, _completionListCache, _clientCapabilities!);
+        internal VSInternalCompletionList CreateLSPCompletionList(IReadOnlyList<RazorCompletionItem> razorCompletionItems) => CreateLSPCompletionList(razorCompletionItems, _clientCapabilities!);
 
         // Internal for benchmarking and testing
         internal static VSInternalCompletionList CreateLSPCompletionList(
             IReadOnlyList<RazorCompletionItem> razorCompletionItems,
-            CompletionListCache completionListCache,
             VSInternalClientCapabilities clientCapabilities)
         {
-            var resultId = completionListCache.Set(razorCompletionItems);
             var completionItems = new List<CompletionItem>();
             foreach (var razorCompletionItem in razorCompletionItems)
             {
                 if (TryConvert(razorCompletionItem, clientCapabilities, out var completionItem))
                 {
                     // The completion items are cached and can be retrieved via this result id to enable the "resolve" completion functionality.
-                    completionItem = completionItem.CreateWithCompletionListResultId(resultId);
                     completionItems.Add(completionItem);
                 }
             }
@@ -190,9 +199,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
                 IsIncomplete = false,
             };
 
-            var completionCapability = clientCapabilities?.TextDocument?.Completion as VSInternalCompletionSetting;
-            var optimizedCompletionList = CompletionListOptimizer.Optimize(completionList, completionCapability);
-            return optimizedCompletionList;
+            return completionList;
         }
 
         // Internal for testing
@@ -329,6 +336,24 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Completion
 
             completionItem = null;
             return false;
+        }
+
+        private record DocumentSnapshotAndVersion(DocumentSnapshot Snapshot, int Version);
+
+        private Task<DocumentSnapshotAndVersion?> TryGetDocumentSnapshotAndVersionAsync(string uri, CancellationToken cancellationToken)
+        {
+            return _projectSnapshotManagerDispatcher.RunOnDispatcherThreadAsync(() =>
+            {
+                if (_documentResolver.TryResolveDocument(uri, out var documentSnapshot))
+                {
+                    if (_documentVersionCache.TryGetDocumentVersion(documentSnapshot, out var version))
+                    {
+                        return new DocumentSnapshotAndVersion(documentSnapshot, version.Value);
+                    }
+                }
+
+                return null;
+            }, cancellationToken);
         }
     }
 }
