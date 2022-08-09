@@ -34,7 +34,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Common
         public const string RazorCompletionEndpointName = "razor/completion";
 
         public const string RazorCompletionResolveEndpointName = "razor/completionItem/resolve";
-        
+
         public const string RazorGetFormattingOptionsEndpointName = "razor/formatting/options";
 
         // RZLS Custom Message Targets
@@ -63,6 +63,8 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Common
         public const string RazorTextPresentationEndpoint = "razor/textPresentation";
 
         public const string RazorUriPresentationEndpoint = "razor/uriPresentation";
+
+        public const string RazorRenameEndpointName = "razor/rename";
 
         // This needs to be the same as in Web Tools, that is used by the HTML editor, because
         // we actually respond to the Web Tools "Wrap With Div" command handler, which sends this message
