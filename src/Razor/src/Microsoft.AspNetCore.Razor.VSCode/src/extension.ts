@@ -185,12 +185,15 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
         context.subscriptions.push(vscodeType.debug.registerDebugConfigurationProvider('blazorwasm', provider));
 
         languageServerClient.onStarted(async () => {
+            const legend = await languageServiceClient.getSemanticTokenLegend();
             const semanticTokenProvider = new RazorDocumentSemanticTokensProvider(
                 documentSynchronizer,
                 documentManager,
                 languageServiceClient,
                 logger);
-            localRegistrations.push(vscodeType.languages.registerDocumentRangeSemanticTokensProvider(RazorLanguage.id, semanticTokenProvider));
+            if (legend) {
+                localRegistrations.push(vscodeType.languages.registerDocumentRangeSemanticTokensProvider(RazorLanguage.id, semanticTokenProvider, legend));
+            }
 
             await documentManager.initialize();
         });
