@@ -54,7 +54,7 @@ namespace Microsoft.AspNetCore.Razor.OmniSharpPlugin
 
     [Shared]
     [Export(typeof(IOmniSharpProjectSnapshotManagerChangeTrigger))]
-    public class ExportOmniSharpWorkspaceProjectStateChangeDetector : OmniSharpWorkspaceProjectStateChangeDetector
+    internal class ExportOmniSharpWorkspaceProjectStateChangeDetector : OmniSharpWorkspaceProjectStateChangeDetector
     {
         [ImportingConstructor]
         public ExportOmniSharpWorkspaceProjectStateChangeDetector(
@@ -67,7 +67,7 @@ namespace Microsoft.AspNetCore.Razor.OmniSharpPlugin
     [Shared]
     [Export(typeof(IOmniSharpProjectSnapshotManagerChangeTrigger))]
     [Export(typeof(OmniSharpProjectWorkspaceStateGenerator))]
-    public class ExportOmniSharpProjectWorkspaceStateGenerator : OmniSharpProjectWorkspaceStateGenerator
+    internal class ExportOmniSharpProjectWorkspaceStateGenerator : OmniSharpProjectWorkspaceStateGenerator
     {
         [ImportingConstructor]
         public ExportOmniSharpProjectWorkspaceStateGenerator(OmniSharpProjectSnapshotManagerDispatcher projectSnapshotManagerDispatcher) : base(projectSnapshotManagerDispatcher)
@@ -77,7 +77,7 @@ namespace Microsoft.AspNetCore.Razor.OmniSharpPlugin
 
     [Shared]
     [Export(typeof(IOmniSharpProjectSnapshotManagerChangeTrigger))]
-    public class ExportOmniSharpBackgroundDocumentGenerator : OmniSharpBackgroundDocumentGenerator
+    internal class ExportOmniSharpBackgroundDocumentGenerator : OmniSharpBackgroundDocumentGenerator
     {
         [ImportingConstructor]
         public ExportOmniSharpBackgroundDocumentGenerator(

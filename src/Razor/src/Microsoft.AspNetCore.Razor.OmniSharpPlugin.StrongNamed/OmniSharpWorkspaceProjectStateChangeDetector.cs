@@ -11,7 +11,7 @@ using Microsoft.CodeAnalysis.Razor.ProjectSystem;
 
 namespace Microsoft.AspNetCore.Razor.OmniSharpPlugin.StrongNamed
 {
-    public class OmniSharpWorkspaceProjectStateChangeDetector : IOmniSharpProjectSnapshotManagerChangeTrigger
+    internal class OmniSharpWorkspaceProjectStateChangeDetector : IOmniSharpProjectSnapshotManagerChangeTrigger
     {
         public OmniSharpWorkspaceProjectStateChangeDetector(
             OmniSharpProjectSnapshotManagerDispatcher projectSnapshotManagerDispatcher,
@@ -87,10 +87,10 @@ namespace Microsoft.AspNetCore.Razor.OmniSharpPlugin.StrongNamed
             // that abnormality.
             internal override void Workspace_WorkspaceChanged(object sender, WorkspaceChangeEventArgs args)
             {
-                _ = Workspace_WorkspaceChangedAsync(sender, args, CancellationToken.None);
+                _ = Workspace_WorkspaceChangedAsync(sender, args);
             }
 
-            private async Task Workspace_WorkspaceChangedAsync(object sender, WorkspaceChangeEventArgs args, CancellationToken cancellationToken)
+            private async Task Workspace_WorkspaceChangedAsync(object sender, WorkspaceChangeEventArgs args)
             {
                 try
                 {
