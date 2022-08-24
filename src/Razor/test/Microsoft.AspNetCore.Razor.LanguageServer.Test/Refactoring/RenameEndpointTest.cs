@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
 using Microsoft.AspNetCore.Razor.LanguageServer.Extensions;
 using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
+using Microsoft.AspNetCore.Razor.LanguageServer.Test;
 using Microsoft.AspNetCore.Razor.LanguageServer.Test.Common;
 using Microsoft.AspNetCore.Razor.Test.Common;
 using Microsoft.CodeAnalysis.CSharp;
@@ -401,7 +402,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Refactoring.Test
 
             var languageServerMock = new Mock<ClientNotifierServiceBase>(MockBehavior.Strict);
             languageServerMock
-                .Setup(c => c.SendRequestAsync(LanguageServerConstants.RazorRenameEndpointName, It.IsAny<DelegatedRenameParams>()))
+                .Setup(c => c.SendRequestAsync<IDelegatedParams>(RazorLanguageServerCustomMessageTargets.RazorRenameEndpointName, It.IsAny<DelegatedRenameParams>()))
                 .Returns(Task.FromResult(responseRouterReturnsMock.Object));
 
             var documentMappingServiceMock = new Mock<RazorDocumentMappingService>(MockBehavior.Strict);
@@ -433,6 +434,37 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Refactoring.Test
 
             // Assert
             Assert.Same(delegatedEdit, result);
+        }
+
+        [Fact]
+        public async Task Handle_Rename_SingleServer_DoesntDelegateForRazor()
+        {
+            // Arrange
+            var languageServerFeatureOptions = Mock.Of<LanguageServerFeatureOptions>(options => options.SupportsFileManipulation == true && options.SingleServerSupport == true, MockBehavior.Strict);
+            var responseRouterReturnsMock = new Mock<IResponseRouterReturns>(MockBehavior.Strict);
+            var languageServerMock = new Mock<ClientNotifierServiceBase>(MockBehavior.Strict);
+            var documentMappingServiceMock = new Mock<RazorDocumentMappingService>(MockBehavior.Strict);
+            documentMappingServiceMock
+                .Setup(c => c.GetLanguageKind(It.IsAny<RazorCodeDocument>(), It.IsAny<int>(), It.IsAny<bool>()))
+                .Returns(RazorLanguageKind.Razor);
+
+            var endpoint = CreateEndpoint(languageServerFeatureOptions, documentMappingServiceMock.Object, languageServerMock.Object);
+
+            var request = new RenameParamsBridge
+            {
+                TextDocument = new TextDocumentIdentifier
+                {
+                    Uri = new Uri("file:///c:/Second/ComponentWithParam.razor")
+                },
+                Position = new Position(1, 0),
+                NewName = "Test2"
+            };
+
+            // Act
+            var result = await endpoint.Handle(request, CancellationToken.None);
+
+            // Assert
+            Assert.Null(result);
         }
 
         [Fact]
@@ -651,16 +683,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Refactoring.Test
             return endpoint;
         }
 
-        internal class TestProjectSnapshotManagerAccessor : ProjectSnapshotManagerAccessor
-        {
-            public TestProjectSnapshotManagerAccessor(ProjectSnapshotManagerBase instance)
-            {
-                Instance = instance;
-            }
-
-            public override ProjectSnapshotManagerBase Instance { get; }
-        }
-
         private class RenameLanguageServer : ClientNotifierServiceBase
         {
             private readonly CSharpTestLspServer _csharpServer;
@@ -686,7 +708,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Refactoring.Test
 
             public async override Task<IResponseRouterReturns> SendRequestAsync<T>(string method, T @params)
             {
-                Assert.Equal(LanguageServerConstants.RazorRenameEndpointName, method);
+                Assert.Equal(RazorLanguageServerCustomMessageTargets.RazorRenameEndpointName, method);
                 var renameParams = Assert.IsType<DelegatedRenameParams>(@params);
 
                 var renameRequest = new RenameParams()
@@ -701,29 +723,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Refactoring.Test
 
                 var result = await _csharpServer.ExecuteRequestAsync<RenameParams, WorkspaceEdit>(Methods.TextDocumentRenameName, renameRequest, CancellationToken.None);
 
-                return new ResponseRouterReturn(result);
-            }
-        }
-
-        private class ResponseRouterReturn : IResponseRouterReturns
-        {
-            private WorkspaceEdit _result;
-
-            public ResponseRouterReturn(WorkspaceEdit result)
-            {
-                _result = result;
-            }
-
-            public Task<TResponse> Returning<TResponse>(CancellationToken cancellationToken)
-            {
-                Assert.IsType<TResponse>(_result);
-
-                return Task.FromResult((TResponse)(object)_result);
-            }
-
-            public Task ReturningVoid(CancellationToken cancellationToken)
-            {
-                throw new NotImplementedException();
+                return new TestResponseRouterReturn(result);
             }
         }
     }

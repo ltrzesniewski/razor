@@ -108,6 +108,10 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor.HtmlCSharp
             if (_languageServerFeatureOptions.SingleServerSupport)
             {
                 _initializeResult.Capabilities.RenameProvider = false;
+                _initializeResult.Capabilities.HoverProvider = false;
+                _initializeResult.Capabilities.DefinitionProvider = false;
+                _initializeResult.Capabilities.DocumentHighlightProvider = false;
+                _initializeResult.Capabilities.SignatureHelpProvider = null;
             }
 
             if (!_languageServerFeatureOptions.SingleServerCompletionSupport)
