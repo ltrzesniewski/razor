@@ -12,7 +12,9 @@ import { RazorCodeActionRunner } from './CodeActions/RazorCodeActionRunner';
 import { listenToConfigurationChanges } from './ConfigurationChangeListener';
 import { RazorCSharpFeature } from './CSharp/RazorCSharpFeature';
 import { ReportIssueCommand } from './Diagnostics/ReportIssueCommand';
+import { DocumentColorHandler } from './DocumentColor/DocumentColorHandler';
 import { reportTelemetryForDocuments } from './DocumentTelemetryListener';
+import { FoldingRangeHandler } from './FoldingRanges/FoldingRangeHandler';
 import { HostEventStream } from './HostEventStream';
 import { RazorHtmlFeature } from './Html/RazorHtmlFeature';
 import { IEventEmitterFactory } from './IEventEmitterFactory';
@@ -81,9 +83,13 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
                 documentManager,
                 languageServerClient,
                 logger);
+            const documentColorHandler = new DocumentColorHandler(
+                documentManager,
+                languageServerClient,
+                logger);
+            const foldingRangeHandler = new FoldingRangeHandler(languageServerClient);
             const semanticTokenHandler = new SemanticTokensHandler(languageServerClient);
             const razorServerReadyHandler = new RazorServerReadyHandler(languageServerClient);
-
             const completionItemProvider = new RazorCompletionItemProvider(
                 documentSynchronizer,
                 documentManager,
@@ -173,6 +179,8 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
             razorFormattingFeature.register();
             razorCodeActionRunner.register();
             codeActionHandler.register();
+            documentColorHandler.register();
+            foldingRangeHandler.register(),
             semanticTokenHandler.register();
         });
 
