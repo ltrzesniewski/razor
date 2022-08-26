@@ -6,5 +6,5 @@
 import * as vscode from 'vscode';
 
 export class SerializableFoldingRangeResponse {
-    constructor(public HtmlRanges: vscode.FoldingRange[], public CSharpRanges: vscode.FoldingRange[]) {}
+    constructor(public htmlRanges: vscode.FoldingRange[], public csharpRanges: vscode.FoldingRange[]) {}
 }

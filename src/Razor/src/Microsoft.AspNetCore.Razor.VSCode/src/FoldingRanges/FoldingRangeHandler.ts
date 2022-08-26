@@ -29,7 +29,7 @@ export class FoldingRangeHandler {
         // This is currently a No-Op because we don't have a way to get folding ranges from C#/HTML.
         // Other functions accomplish this with `vscode.execute<Blank>Provider`, but that doesn't exist yet for folding ranges:
         // https://github.com/microsoft/vscode/issues/158973
-        let emptyFoldingRange: vscode.FoldingRange[] = [];
+        const emptyFoldingRange: vscode.FoldingRange[] = [];
         const response = new SerializableFoldingRangeResponse(emptyFoldingRange, emptyFoldingRange);
         return response;
     }

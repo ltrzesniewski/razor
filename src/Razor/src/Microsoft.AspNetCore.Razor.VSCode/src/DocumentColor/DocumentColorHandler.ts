@@ -32,7 +32,7 @@ export class DocumentColorHandler {
         documentColorParams: SerializableTextDocumentIdentifier,
         cancellationToken: vscode.CancellationToken) {
         try {
-            const razorDocumentUri = vscode.Uri.parse('vscode:' + documentColorParams.uri, true);
+            const razorDocumentUri = vscode.Uri.parse(`vscode:${documentColorParams.uri}`, true);
             const razorDocument = await this.documentManager.getDocument(razorDocumentUri);
             if (razorDocument === undefined) {
                 this.logger.logWarning(`Could not find Razor document ${razorDocumentUri}; returning empty color information.`);
