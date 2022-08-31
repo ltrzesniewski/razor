@@ -15,7 +15,7 @@ import { convertRangeFromSerializable } from '../RPC/SerializableRange';
 export class CodeActionsHandler {
 
     private static readonly provideCodeActionsEndpoint = 'razor/provideCodeActions';
-    private codeActionRequestType: RequestType<SerializableCodeActionParams, RazorCodeAction[], any, any> = new RequestType(CodeActionsHandler.provideCodeActionsEndpoint);
+    private codeActionRequestType: RequestType<SerializableCodeActionParams, RazorCodeAction[], any> = new RequestType(CodeActionsHandler.provideCodeActionsEndpoint);
     private emptyCodeActionResponse: RazorCodeAction[] = [];
 
     constructor(
@@ -26,9 +26,9 @@ export class CodeActionsHandler {
 
     public register() {
         // tslint:disable-next-line: no-floating-promises
-        this.serverClient.onRequestWithParams<SerializableCodeActionParams, RazorCodeAction[], any, any>(
+        this.serverClient.onRequestWithParams<SerializableCodeActionParams, RazorCodeAction[], any>(
             this.codeActionRequestType,
-            async (request, token) => this.provideCodeActions(request, token));
+            async (request: SerializableCodeActionParams, token: vscode.CancellationToken) => this.provideCodeActions(request, token));
     }
 
     private async provideCodeActions(

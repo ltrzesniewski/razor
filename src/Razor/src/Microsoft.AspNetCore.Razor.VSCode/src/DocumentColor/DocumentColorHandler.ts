@@ -12,7 +12,7 @@ import { SerializableTextDocumentIdentifier } from '../RPC/SerializableTextDocum
 
 export class DocumentColorHandler {
     private static readonly provideHtmlDocumentColorEndpoint = 'razor/provideHtmlDocumentColor';
-    private documentColorRequestType: RequestType<SerializableTextDocumentIdentifier, vscode.ColorInformation[], any, any> = new RequestType(DocumentColorHandler.provideHtmlDocumentColorEndpoint);
+    private documentColorRequestType: RequestType<SerializableTextDocumentIdentifier, vscode.ColorInformation[], any> = new RequestType(DocumentColorHandler.provideHtmlDocumentColorEndpoint);
     private emptyColorInformationResponse: vscode.ColorInformation[] = [];
 
     constructor(
@@ -23,9 +23,9 @@ export class DocumentColorHandler {
 
     public register() {
         // tslint:disable-next-line: no-floating-promises
-        this.serverClient.onRequestWithParams<SerializableTextDocumentIdentifier, vscode.ColorInformation[], any, any>(
+        this.serverClient.onRequestWithParams<SerializableTextDocumentIdentifier, vscode.ColorInformation[], any>(
             this.documentColorRequestType,
-            async (request, token) => this.provideHtmlDocumentColors(request, token));
+            async (request: SerializableTextDocumentIdentifier, token: vscode.CancellationToken) => this.provideHtmlDocumentColors(request, token));
     }
 
     private async provideHtmlDocumentColors(

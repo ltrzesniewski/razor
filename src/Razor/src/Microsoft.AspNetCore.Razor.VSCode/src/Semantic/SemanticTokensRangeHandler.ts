@@ -12,7 +12,7 @@ import { SemanticTokensResponse } from './SemanticTokensResponse';
 
 export class SemanticTokensRangeHandler {
     private static readonly getSemanticTokensRangeEndpoint = 'razor/provideSemanticTokensRange';
-    private semanticTokensRequestType: RequestType<SerializableSemanticTokensParams, ProvideSemanticTokensResponse, any, any> =
+    private semanticTokensRequestType: RequestType<SerializableSemanticTokensParams, ProvideSemanticTokensResponse, any> =
         new RequestType(SemanticTokensRangeHandler.getSemanticTokensRangeEndpoint);
     private emptySemanticTokensResponse: ProvideSemanticTokensResponse = new ProvideSemanticTokensResponse(
         new SemanticTokensResponse(new Array<number>(), ''),
@@ -23,9 +23,9 @@ export class SemanticTokensRangeHandler {
 
     public register() {
         // tslint:disable-next-line: no-floating-promises
-        this.serverClient.onRequestWithParams<SerializableSemanticTokensParams, ProvideSemanticTokensResponse, any, any>(
+        this.serverClient.onRequestWithParams<SerializableSemanticTokensParams, ProvideSemanticTokensResponse, any>(
             this.semanticTokensRequestType,
-            async (request, token) => this.getSemanticTokens(request, token));
+            async (request: SerializableSemanticTokensParams, token: vscode.CancellationToken) => this.getSemanticTokens(request, token));
     }
 
     private async getSemanticTokens(

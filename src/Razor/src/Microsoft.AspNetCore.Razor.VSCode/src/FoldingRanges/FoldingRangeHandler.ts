@@ -11,16 +11,16 @@ import { SerializableFoldingRangeResponse } from '../RPC/SerializableFoldingRang
 
 export class FoldingRangeHandler {
     private static readonly provideFoldingRange = 'razor/foldingRange';
-    private foldingRangeRequestType: RequestType<SerializableFoldingRangeParams, SerializableFoldingRangeResponse, any, any> = new RequestType(FoldingRangeHandler.provideFoldingRange);
+    private foldingRangeRequestType: RequestType<SerializableFoldingRangeParams, SerializableFoldingRangeResponse, any> = new RequestType(FoldingRangeHandler.provideFoldingRange);
 
     constructor(private readonly serverClient: RazorLanguageServerClient) {
     }
 
     public register() {
         // tslint:disable-next-line: no-floating-promises
-        this.serverClient.onRequestWithParams<SerializableFoldingRangeParams, SerializableFoldingRangeResponse, any, any>(
+        this.serverClient.onRequestWithParams<SerializableFoldingRangeParams, SerializableFoldingRangeResponse, any>(
             this.foldingRangeRequestType,
-            async (request, token) => this.provideFoldingRanges(request, token));
+            async (request: SerializableFoldingRangeParams, token: vscode.CancellationToken) => this.provideFoldingRanges(request, token));
     }
 
     private async provideFoldingRanges(

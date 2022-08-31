@@ -97,11 +97,11 @@ export class RazorDocumentManager implements IRazorDocumentManager {
         });
         this.serverClient.onRequest(
             'razor/updateCSharpBuffer',
-            async updateBufferRequest => this.updateCSharpBuffer(updateBufferRequest));
+            async (updateBufferRequest: UpdateBufferRequest) => this.updateCSharpBuffer(updateBufferRequest));
 
         this.serverClient.onRequest(
             'razor/updateHtmlBuffer',
-            async updateBufferRequest => this.updateHtmlBuffer(updateBufferRequest));
+            async (updateBufferRequest: UpdateBufferRequest) => this.updateHtmlBuffer(updateBufferRequest));
 
         return vscode.Disposable.from(
             watcher,
