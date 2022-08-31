@@ -70,7 +70,7 @@ async function terminateByProcessName(
 
   let processes: psList.ProcessDescriptor[] = [];
   try {
-    processes = await psList.default();
+    processes = await psList();
   } catch (error) {
     logger.logError(`Error retrieving processes to clean-up: `, error as Error);
   }
