@@ -48,7 +48,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.AutoInsert
             _onAutoInsertTriggerCharacters = _onAutoInsertProviders.Select(provider => provider.TriggerCharacter).ToImmutableHashSet();
         }
 
-        public RegistrationExtensionResult GetRegistration(VSInternalClientCapabilities clientCapabilities)
+        public RegistrationExtensionResult? GetRegistration(VSInternalClientCapabilities clientCapabilities)
         {
             const string AssociatedServerCapability = "_vs_onAutoInsertProvider";
 
