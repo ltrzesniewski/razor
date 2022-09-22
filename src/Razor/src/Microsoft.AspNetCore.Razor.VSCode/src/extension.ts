@@ -13,10 +13,11 @@ import { listenToConfigurationChanges } from './ConfigurationChangeListener';
 import { RazorCSharpFeature } from './CSharp/RazorCSharpFeature';
 import { ReportIssueCommand } from './Diagnostics/ReportIssueCommand';
 import { DocumentColorHandler } from './DocumentColor/DocumentColorHandler';
-import { RazorDocumentHighlightProvider } from './DocumentHighlight/RazorDocumentHighlightProvider';
+import { DocumentHighlightHandler } from './DocumentHighlight/DocumentHighlightHandler';
 import { reportTelemetryForDocuments } from './DocumentTelemetryListener';
 import { FoldingRangeHandler } from './Folding/FoldingRangeHandler';
 import { HostEventStream } from './HostEventStream';
+import { HoverHandler } from './Hover/HoverHandler';
 import { RazorHtmlFeature } from './Html/RazorHtmlFeature';
 import { IEventEmitterFactory } from './IEventEmitterFactory';
 import { ProposedApisFeature } from './ProposedApisFeature';
@@ -28,7 +29,6 @@ import { RazorDefinitionProvider } from './RazorDefinitionProvider';
 import { RazorDocumentManager } from './RazorDocumentManager';
 import { RazorDocumentSynchronizer } from './RazorDocumentSynchronizer';
 import { RazorFormattingFeature } from './RazorFormattingFeature';
-import { RazorHoverProvider } from './RazorHoverProvider';
 import { RazorImplementationProvider } from './RazorImplementationProvider';
 import { RazorLanguage } from './RazorLanguage';
 import { RazorLanguageConfiguration } from './RazorLanguageConfiguration';
@@ -89,7 +89,15 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
                 documentManager,
                 languageServerClient,
                 logger);
+            const documentHighlightHandler = new DocumentHighlightHandler(
+                documentManager,
+                languageServerClient,
+                logger);
             const foldingRangeHandler = new FoldingRangeHandler(languageServerClient);
+            const hoverHandler = new HoverHandler(
+                documentManager,
+                languageServerClient,
+                logger);
             const razorServerReadyHandler = new RazorServerReadyHandler(languageServerClient);
 
             const completionItemProvider = new RazorCompletionItemProvider(
@@ -113,11 +121,6 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
                 documentManager,
                 languageServiceClient,
                 logger);
-            const hoverProvider = new RazorHoverProvider(
-                documentSynchronizer,
-                documentManager,
-                languageServiceClient,
-                logger);
             const codeLensProvider = new RazorCodeLensProvider(
                 documentSynchronizer,
                 documentManager,
@@ -129,11 +132,6 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
                 languageServiceClient,
                 logger);
             const referenceProvider = new RazorReferenceProvider(
-                documentSynchronizer,
-                documentManager,
-                languageServiceClient,
-                logger);
-            const documentHighlightProvider = new RazorDocumentHighlightProvider(
                 documentSynchronizer,
                 documentManager,
                 languageServiceClient,
@@ -158,9 +156,6 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
                 vscodeType.languages.registerImplementationProvider(
                     RazorLanguage.id,
                     implementationProvider),
-                vscodeType.languages.registerHoverProvider(
-                    RazorLanguage.documentSelector,
-                    hoverProvider),
                 vscodeType.languages.registerReferenceProvider(
                     RazorLanguage.id,
                     referenceProvider),
@@ -170,9 +165,6 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
                 vscodeType.languages.registerRenameProvider(
                     RazorLanguage.id,
                     renameProvider),
-                vscodeType.languages.registerDocumentHighlightProvider(
-                    RazorLanguage.id,
-                    documentHighlightProvider),
                 documentManager.register(),
                 csharpFeature.register(),
                 htmlFeature.register(),
@@ -190,7 +182,9 @@ export async function activate(vscodeType: typeof vscodeapi, context: ExtensionC
             razorCodeActionRunner.register();
             codeActionHandler.register();
             documentColorHandler.register();
+            documentHighlightHandler.register();
             foldingRangeHandler.register();
+            hoverHandler.register();
             semanticTokenHandler.register();
         });
 
