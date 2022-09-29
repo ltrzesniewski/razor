@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Razor.LanguageServer.AutoInsert;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common.Telemetry;
 using Microsoft.AspNetCore.Razor.LanguageServer.Debugging;
 using Microsoft.AspNetCore.Razor.LanguageServer.Definition;
-using Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics;
 using Microsoft.AspNetCore.Razor.LanguageServer.DocumentColor;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
 using Microsoft.AspNetCore.Razor.LanguageServer.Extensions;
@@ -92,6 +91,7 @@ internal class RazorLanguageServer : AbstractLanguageServer<RazorRequestContext>
 
         services.AddLifeCycleServices(this, serverManager);
 
+        services.AddDiagnosticServices();
         services.AddSemanticTokensServices();
         services.AddDocumentManagmentServices();
         services.AddCompletionServices(featureOptions);
@@ -130,7 +130,6 @@ internal class RazorLanguageServer : AbstractLanguageServer<RazorRequestContext>
 
         static void AddHandlers(IServiceCollection services)
         {
-            services.AddHandler<RazorDiagnosticsEndpoint>();
             services.AddHandler<RazorConfigurationEndpoint>();
             services.AddRegisteringHandler<OnAutoInsertEndpoint>();
             services.AddHandler<MonitorProjectConfigurationFilePathEndpoint>();

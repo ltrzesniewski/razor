@@ -44,8 +44,6 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
         private readonly EditorSettingsManager _editorSettingsManager;
         private readonly LSPDocumentSynchronizer _documentSynchronizer;
 
-        private const string RazorReadyFeature = "Razor-Initialization";
-
         [ImportingConstructor]
         public DefaultRazorLanguageServerCustomMessageTarget(
             LSPDocumentManager documentManager,
@@ -1079,6 +1077,69 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
 
         public override Task<ImplementationResult> ImplementationAsync(DelegatedPositionParams request, CancellationToken cancellationToken)
             => DelegateTextDocumentPositionRequestAsync<ImplementationResult>(request, Methods.TextDocumentImplementationName, cancellationToken);
+
+        public override async Task<IEnumerable<VSInternalDiagnosticReport>?> DiagnosticsAsync(DelegatedDiagnosticParams request, CancellationToken cancellationToken)
+        {
+            if (!_documentManager.TryGetDocument(request.HostDocument.Uri, out var documentSnapshot))
+            {
+                return null;
+            }
+
+            if (!documentSnapshot.TryGetVirtualDocument<HtmlVirtualDocumentSnapshot>(out var htmlVirtualDocument))
+            {
+                throw new NotImplementedException("HtmlDocument couldn't be retrieved");
+            }
+
+            var htmlSynchronized = await _documentSynchronizer.TrySynchronizeVirtualDocumentAsync(request.HostDocument.Version, htmlVirtualDocument, rejectOnNewerParallelRequest: false, cancellationToken);
+            if (!htmlSynchronized)
+            {
+                return null;
+            }
+
+            var htmlRequest = new VSInternalDocumentDiagnosticsParams
+            {
+                TextDocument = new TextDocumentIdentifier
+                {
+                    Uri = htmlVirtualDocument.Uri,
+                },
+            };
+
+            var htmlResponses = await _requestInvoker.ReinvokeRequestOnMultipleServersAsync<VSInternalDocumentDiagnosticsParams, VSInternalDiagnosticReport[]?>(
+                VSInternalMethods.DocumentPullDiagnosticName,
+                RazorLSPConstants.HtmlLSPContentTypeName,
+                htmlRequest,
+                cancellationToken);
+            var htmlResults = htmlResponses.SelectMany(h => h.Result!);
+
+            if (!documentSnapshot.TryGetVirtualDocument<CSharpVirtualDocumentSnapshot>(out var csharpVirtualDocument))
+            {
+                throw new NotImplementedException("HtmlDocument couldn't be retrieved");
+            }
+
+            var csharpSynchronized = await _documentSynchronizer.TrySynchronizeVirtualDocumentAsync(request.HostDocument.Version, csharpVirtualDocument, rejectOnNewerParallelRequest: false, cancellationToken);
+            if (!csharpSynchronized)
+            {
+                return null;
+            }
+
+            var csharpRequest = new VSInternalDocumentDiagnosticsParams
+            {
+                TextDocument = new TextDocumentIdentifier
+                {
+                    Uri = csharpVirtualDocument.Uri,
+                },
+            };
+
+            var csharpResponse = await _requestInvoker.ReinvokeRequestOnMultipleServersAsync<VSInternalDocumentDiagnosticsParams, VSInternalDiagnosticReport[]?>(
+                VSInternalMethods.DocumentPullDiagnosticName,
+                RazorLSPConstants.CSharpContentTypeName,
+                csharpRequest,
+                cancellationToken);
+
+            var csharpResults = csharpResponse.SelectMany(h => h.Result!);
+
+            return htmlResults.Concat(csharpResults);
+        }
 
         private async Task<TResult?> DelegateTextDocumentPositionRequestAsync<TResult>(DelegatedPositionParams request, string methodName, CancellationToken cancellationToken)
         {

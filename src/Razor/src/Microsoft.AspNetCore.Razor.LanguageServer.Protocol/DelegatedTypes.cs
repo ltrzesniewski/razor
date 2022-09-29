@@ -9,6 +9,8 @@ using Microsoft.VisualStudio.LanguageServer.Protocol;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
 
+internal record DelegatedDiagnosticParams(VersionedTextDocumentIdentifier HostDocument);
+
 internal record DelegatedPositionParams(
     VersionedTextDocumentIdentifier HostDocument,
     Position ProjectedPosition,
