@@ -44,5 +44,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Common
         public const string RazorOnAutoInsertEndpointName = "razor/onAutoInsert";
 
         public const string RazorPullDiagnosticEndpointName = "razor/pullDiagnostics";
+
+        public const string RazorValidateBreakpointRangeName = "razor/validateBreakpointRange";
     }
 }

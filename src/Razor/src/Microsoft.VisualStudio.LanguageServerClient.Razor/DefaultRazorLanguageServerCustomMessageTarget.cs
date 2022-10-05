@@ -128,7 +128,7 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
             var hostDocumentUri = new Uri(request.HostDocumentFilePath);
             _documentManager.UpdateVirtualDocument<CSharpVirtualDocument>(
                 hostDocumentUri,
-                request.Changes?.Select(change => change.ToVisualStudioTextChange()).ToArray(),
+                request.Changes.Select(change => change.ToVisualStudioTextChange()).ToArray(),
                 request.HostDocumentVersion.Value,
                 state: null);
         }
@@ -156,7 +156,7 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
             var hostDocumentUri = new Uri(request.HostDocumentFilePath);
             _documentManager.UpdateVirtualDocument<HtmlVirtualDocument>(
                 hostDocumentUri,
-                request.Changes?.Select(change => change.ToVisualStudioTextChange()).ToArray(),
+                request.Changes.Select(change => change.ToVisualStudioTextChange()).ToArray(),
                 request.HostDocumentVersion.Value,
                 state: null);
         }
@@ -871,7 +871,7 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
             {
                 await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
-                var provisionalChange = new VisualStudioTextChange(request.ProvisionalTextEdit, virtualDocumentSnapshot.Snapshot);
+                var provisionalChange = new VisualStudioTextChange(provisionalTextEdit, virtualDocumentSnapshot.Snapshot);
                 UpdateVirtualDocument(provisionalChange, request.ProjectedKind, request.HostDocument.Version, documentSnapshot.Uri);
 
                 // We want the delegation to continue on the captured context because we're currently on the `main` thread and we need to get back to the
@@ -1060,6 +1060,32 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
                delegationDetails.Value.LanguageServerName,
                onAutoInsertParams,
                cancellationToken).ConfigureAwait(false);
+            return response?.Response;
+        }
+
+        public override async Task<Range?> ValidateBreakpointRangeAsync(DelegatedValidateBreakpointRangeParams request, CancellationToken cancellationToken)
+        {
+            var delegationDetails = await GetProjectedRequestDetailsAsync(request, cancellationToken).ConfigureAwait(false);
+            if (delegationDetails is null)
+            {
+                return default;
+            }
+
+            var validateBreakpointRangeParams = new VSInternalValidateBreakableRangeParams
+            {
+                TextDocument = new TextDocumentIdentifier()
+                {
+                    Uri = delegationDetails.Value.ProjectedUri,
+                },
+                Range = request.ProjectedRange
+            };
+
+            var response = await _requestInvoker.ReinvokeRequestOnServerAsync<VSInternalValidateBreakableRangeParams, Range?>(
+                delegationDetails.Value.TextBuffer,
+                VSInternalMethods.TextDocumentValidateBreakableRangeName,
+                delegationDetails.Value.LanguageServerName,
+                validateBreakpointRangeParams,
+                cancellationToken).ConfigureAwait(false);
             return response?.Response;
         }
 

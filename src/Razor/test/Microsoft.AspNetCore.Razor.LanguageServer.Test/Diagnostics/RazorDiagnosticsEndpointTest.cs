@@ -16,17 +16,20 @@ using Microsoft.AspNetCore.Razor.Test.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics
 {
     public class RazorDiagnosticsEndpointTest : LanguageServerTestBase
     {
-        public RazorDiagnosticsEndpointTest()
-        {
-            MappingService = new DefaultRazorDocumentMappingService(TestLanguageServerFeatureOptions.Instance, new TestDocumentContextFactory(), LoggerFactory);
-        }
+        private readonly RazorDocumentMappingService _mappingService;
 
-        private RazorDocumentMappingService MappingService { get; }
+        public RazorDiagnosticsEndpointTest(ITestOutputHelper testOutput)
+            : base(testOutput)
+        {
+            _mappingService = new DefaultRazorDocumentMappingService(
+                TestLanguageServerFeatureOptions.Instance, new TestDocumentContextFactory(), LoggerFactory);
+        }
 
         [Fact(Skip = "Debug.Fail doesn't work in CI")]
         public async Task Handle_DocumentResolveFailed_ThrowsDebugFail()
@@ -526,7 +529,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics
                 "__o = Microsoft.AspNetCore.Components.EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.ProgressEventArgs>(this, );",
                 sourceMappings: Array.Empty<SourceMapping>());
             var documentContext = CreateDocumentContext(documentPath, codeDocument);
-            var diagnosticsEndpoint = new TestRazorDiagnosticsEndpointWithoutRazorDiagnostic(MappingService, LoggerFactory);
+            var diagnosticsEndpoint = new TestRazorDiagnosticsEndpointWithoutRazorDiagnostic(_mappingService, LoggerFactory);
             var request = new RazorDiagnosticsParams()
             {
                 Kind = RazorLanguageKind.CSharp,
@@ -559,7 +562,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics
                 "__o = Microsoft.AspNetCore.Components.EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.ProgressEventArgs>(this, );",
                 sourceMappings: Array.Empty<SourceMapping>());
             var documentContext = CreateDocumentContext(documentPath, codeDocument);
-            var diagnosticsEndpoint = new TestRazorDiagnosticsEndpointWithRazorDiagnostic(MappingService, LoggerFactory);
+            var diagnosticsEndpoint = new TestRazorDiagnosticsEndpointWithRazorDiagnostic(_mappingService, LoggerFactory);
             var request = new RazorDiagnosticsParams()
             {
                 Kind = RazorLanguageKind.CSharp,

@@ -42,6 +42,8 @@ internal static class IServiceCollectionExtensions
         services.AddSingleton<IInitializeManager<InitializeParams, InitializeResult>, CapabilitiesManager>();
         services.AddSingleton<IRequestContextFactory<RazorRequestContext>, RazorRequestContextFactory>();
 
+        services.AddSingleton<IRegistrationExtension, RazorLanguageServerCapability>();
+
         services.AddSingleton<IOnInitialized>(serverManager);
     }
 
@@ -151,7 +153,9 @@ internal static class IServiceCollectionExtensions
         services.AddHandler<RazorDidOpenTextDocumentEndpoint>();
         services.AddHandler<RazorDidSaveTextDocumentEndpoint>();
 
+        services.AddHandler<RazorMapToDocumentEditsEndpoint>();
         services.AddHandler<RazorMapToDocumentRangesEndpoint>();
+        services.AddHandler<RazorLanguageQueryEndpoint>();
     }
 
     public static void AddOptionsServices(this IServiceCollection services)

@@ -16,6 +16,11 @@ internal record DelegatedPositionParams(
     Position ProjectedPosition,
     RazorLanguageKind ProjectedKind) : IDelegatedParams;
 
+internal record DelegatedValidateBreakpointRangeParams(
+    VersionedTextDocumentIdentifier HostDocument,
+    Range ProjectedRange,
+    RazorLanguageKind ProjectedKind) : IDelegatedParams;
+
 internal record DelegatedOnAutoInsertParams(
     VersionedTextDocumentIdentifier HostDocument,
     Position ProjectedPosition,
