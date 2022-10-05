@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See License.txt in the project root for license information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,10 +15,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics;
 
 internal class RazorPullDiagnosticsEndpoint : IRazorPullDiagnosticsEndpoint
 {
-    public RazorPullDiagnosticsEndpoint()
-    {
-    }
-
     public bool MutatesSolutionState => false;
 
     public RegistrationExtensionResult GetRegistration(VSInternalClientCapabilities clientCapabilities)
@@ -84,7 +79,7 @@ internal class RazorPullDiagnosticsEndpoint : IRazorPullDiagnosticsEndpoint
                 {
                     if (mappingService.TryMapFromProjectedDocumentRange(codeDocument, diagnostic.Range, out var razorRange))
                     {
-                   //     diagnostic.Range = razorRange;
+                        diagnostic.Range = razorRange;
                     }
                 }
             }

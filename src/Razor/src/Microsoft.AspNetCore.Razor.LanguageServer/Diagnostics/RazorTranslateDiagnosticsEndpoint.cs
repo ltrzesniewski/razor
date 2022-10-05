@@ -56,6 +56,14 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics
             _logger = loggerFactory.CreateLogger<RazorTranslateDiagnosticsEndpoint>();
         }
 
+        public TextDocumentIdentifier GetTextDocumentIdentifier(RazorDiagnosticsParams request)
+        {
+            return new TextDocumentIdentifier
+            {
+                Uri = request.RazorDocumentUri
+            };
+        }
+
         public async Task<RazorDiagnosticsResponse> HandleRequestAsync(RazorDiagnosticsParams request, RazorRequestContext requestContext, CancellationToken cancellationToken)
         {
             if (request is null)
@@ -568,14 +576,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics
             }
 
             return true;
-        }
-
-        public TextDocumentIdentifier GetTextDocumentIdentifier(RazorDiagnosticsParams request)
-        {
-            return new TextDocumentIdentifier
-            {
-                Uri = request.RazorDocumentUri
-            };
         }
     }
 }
