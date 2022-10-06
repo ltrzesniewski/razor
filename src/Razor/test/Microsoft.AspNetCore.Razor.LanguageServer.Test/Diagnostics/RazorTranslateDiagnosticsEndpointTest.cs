@@ -20,11 +20,11 @@ using Xunit.Abstractions;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics
 {
-    public class RazorDiagnosticsEndpointTest : LanguageServerTestBase
+    public class RazorTranslateDiagnosticsEndpointTest : LanguageServerTestBase
     {
         private readonly RazorDocumentMappingService _mappingService;
 
-        public RazorDiagnosticsEndpointTest(ITestOutputHelper testOutput)
+        public RazorTranslateDiagnosticsEndpointTest(ITestOutputHelper testOutput)
             : base(testOutput)
         {
             _mappingService = new DefaultRazorDocumentMappingService(

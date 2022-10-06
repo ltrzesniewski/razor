@@ -1,7 +1,6 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT license. See License.txt in the project root for license information.
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common;
@@ -15,8 +14,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.DocumentHighlighting
 {
     internal class DocumentHighlightEndpoint : AbstractRazorDelegatingEndpoint<DocumentHighlightParamsBridge, DocumentHighlight[]?>, IDocumentHighlightEndpoint
     {
-        private readonly RazorDocumentMappingService _documentMappingService;
-
         public DocumentHighlightEndpoint(
             LanguageServerFeatureOptions languageServerFeatureOptions,
             RazorDocumentMappingService documentMappingService,
@@ -24,7 +21,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.DocumentHighlighting
             ILoggerFactory loggerFactory)
             : base(languageServerFeatureOptions, documentMappingService, languageServer, loggerFactory.CreateLogger<DocumentHighlightEndpoint>())
         {
-            _documentMappingService = documentMappingService ?? throw new ArgumentNullException(nameof(documentMappingService));
         }
 
         public RegistrationExtensionResult GetRegistration(VSInternalClientCapabilities clientCapabilities)

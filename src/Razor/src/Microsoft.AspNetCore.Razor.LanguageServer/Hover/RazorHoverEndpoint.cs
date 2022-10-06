@@ -17,7 +17,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Hover
     internal class RazorHoverEndpoint : AbstractRazorDelegatingEndpoint<TextDocumentPositionParamsBridge, VSInternalHover?>, IVSHoverEndpoint
     {
         private readonly RazorHoverInfoService _hoverInfoService;
-        private readonly RazorDocumentMappingService _documentMappingService;
         private VSInternalClientCapabilities? _clientCapabilities;
 
         public RazorHoverEndpoint(
@@ -29,7 +28,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Hover
             : base(languageServerFeatureOptions, documentMappingService, languageServer, loggerFactory.CreateLogger<RazorHoverEndpoint>())
         {
             _hoverInfoService = hoverInfoService ?? throw new ArgumentNullException(nameof(hoverInfoService));
-            _documentMappingService = documentMappingService ?? throw new ArgumentNullException(nameof(documentMappingService));
         }
 
         public RegistrationExtensionResult GetRegistration(VSInternalClientCapabilities clientCapabilities)

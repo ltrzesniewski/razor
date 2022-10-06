@@ -29,7 +29,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Definition
     internal class RazorDefinitionEndpoint : AbstractRazorDelegatingEndpoint<TextDocumentPositionParamsBridge, DefinitionResult?>, IDefinitionEndpoint
     {
         private readonly RazorComponentSearchEngine _componentSearchEngine;
-        private readonly RazorDocumentMappingService _documentMappingService;
 
         public RazorDefinitionEndpoint(
             RazorComponentSearchEngine componentSearchEngine,
@@ -40,7 +39,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Definition
             : base(languageServerFeatureOptions, documentMappingService, languageServer, loggerFactory.CreateLogger<RazorDefinitionEndpoint>())
         {
             _componentSearchEngine = componentSearchEngine ?? throw new ArgumentNullException(nameof(componentSearchEngine));
-            _documentMappingService = documentMappingService ?? throw new ArgumentNullException(nameof(documentMappingService));
         }
 
         protected override string CustomMessageTarget => RazorLanguageServerCustomMessageTargets.RazorDefinitionEndpointName;

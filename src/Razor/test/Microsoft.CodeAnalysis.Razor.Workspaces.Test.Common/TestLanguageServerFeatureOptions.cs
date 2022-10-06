@@ -8,9 +8,11 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
     internal class TestLanguageServerFeatureOptions : LanguageServerFeatureOptions
     {
         public static readonly LanguageServerFeatureOptions Instance = new TestLanguageServerFeatureOptions();
+        private readonly bool _singleServerSupport;
 
-        private TestLanguageServerFeatureOptions()
+        public TestLanguageServerFeatureOptions(bool singleServerSupport = false)
         {
+            _singleServerSupport = singleServerSupport;
         }
 
         public override bool SupportsFileManipulation => false;
@@ -23,6 +25,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
 
         public override bool SingleServerCompletionSupport => false;
 
-        public override bool SingleServerSupport => false;
+        public override bool SingleServerSupport => _singleServerSupport;
     }
 }

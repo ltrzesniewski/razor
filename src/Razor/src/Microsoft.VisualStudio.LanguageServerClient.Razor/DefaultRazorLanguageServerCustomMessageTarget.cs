@@ -1113,10 +1113,10 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
 
             if (!documentSnapshot.TryGetVirtualDocument<CSharpVirtualDocumentSnapshot>(out var csharpVirtualDocument))
             {
-                throw new NotImplementedException("HtmlDocument couldn't be retrieved");
+                throw new NotImplementedException("CSharpDocument couldn't be retrieved");
             }
 
-            var csharpSynchronized = await _documentSynchronizer.TrySynchronizeVirtualDocumentAsync(request.HostDocument.Version, csharpVirtualDocument, rejectOnNewerParallelRequest: false, cancellationToken);
+            var csharpSynchronized = await _documentSynchronizer.TrySynchronizeVirtualDocumentAsync(request.HostDocument.Version, csharpVirtualDocument, rejectOnNewerParallelRequest: false, cancellationToken).ConfigureAwait(false);
             if (!csharpSynchronized)
             {
                 return null;
@@ -1133,7 +1133,7 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
                 VSInternalMethods.DocumentPullDiagnosticName,
                 RazorLSPConstants.CSharpContentTypeName,
                 csharpRequest,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             var csharpResults = csharpResponse.SelectMany(h => h.Result!);
 
