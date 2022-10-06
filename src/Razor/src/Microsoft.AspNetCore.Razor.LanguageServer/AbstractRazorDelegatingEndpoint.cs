@@ -14,11 +14,11 @@ using Microsoft.VisualStudio.LanguageServer.Protocol;
 namespace Microsoft.AspNetCore.Razor.LanguageServer
 {
     internal abstract class AbstractRazorDelegatingEndpoint<TRequest, TResponse> : IRazorRequestHandler<TRequest, TResponse?>
-       where TRequest : ITextDocumentPositionParams
+       where TRequest : ITextDocumentParams
     {
         private readonly LanguageServerFeatureOptions _languageServerFeatureOptions;
-        private readonly RazorDocumentMappingService _documentMappingService;
         private readonly ClientNotifierServiceBase _languageServer;
+        protected readonly RazorDocumentMappingService _documentMappingService;
         protected readonly ILogger Logger;
 
         protected AbstractRazorDelegatingEndpoint(
@@ -95,10 +95,18 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
                 return default;
             }
 
-            var projection = await _documentMappingService.TryGetProjectionAsync(documentContext, request.Position, requestContext.Logger, cancellationToken).ConfigureAwait(false);
-            if (projection is null)
+            Projection? projection;
+            if (request is ITextDocumentPositionParams positionParams)
             {
-                return default;
+                projection = await _documentMappingService.TryGetProjectionAsync(documentContext, positionParams.Position, requestContext.Logger, cancellationToken).ConfigureAwait(false);
+                if (projection is null)
+                {
+                    return default;
+                }
+            }
+            else
+            {
+                projection = new Projection(RazorLanguageKind.CSharp, new Position(-1, -1), -1);
             }
 
             var response = await TryHandleAsync(request, requestContext, projection, cancellationToken).ConfigureAwait(false);

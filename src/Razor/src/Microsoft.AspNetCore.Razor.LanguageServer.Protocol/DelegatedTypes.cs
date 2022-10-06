@@ -9,7 +9,9 @@ using Microsoft.VisualStudio.LanguageServer.Protocol;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
 
-internal record DelegatedDiagnosticParams(VersionedTextDocumentIdentifier HostDocument);
+internal record DelegatedDiagnosticParams(
+    VersionedTextDocumentIdentifier HostDocument,
+    RazorLanguageKind ProjectedKind) : IDelegatedParams;
 
 internal record DelegatedPositionParams(
     VersionedTextDocumentIdentifier HostDocument,

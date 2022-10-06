@@ -1,83 +1,73 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT license. See License.txt in the project root for license information.
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
 using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
+using Microsoft.CodeAnalysis.Razor.Workspaces;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics;
 
-internal class RazorPullDiagnosticsEndpoint : IRazorPullDiagnosticsEndpoint
+#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
+internal class VSInternalDocumentDiagnosticsParamsBridge : VSInternalDocumentDiagnosticsParams, ITextDocumentParams
+#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
 {
-    public bool MutatesSolutionState => false;
+}
+
+internal class RazorPullDiagnosticsEndpoint
+    : AbstractRazorDelegatingEndpoint<VSInternalDocumentDiagnosticsParamsBridge, IEnumerable<VSInternalDiagnosticReport>>,
+    IRazorPullDiagnosticsEndpoint
+{
+    public RazorPullDiagnosticsEndpoint(
+        LanguageServerFeatureOptions languageServerFeatureOptions,
+        RazorDocumentMappingService documentMappingService,
+        ClientNotifierServiceBase languageServer,
+        ILogger logger)
+        : base(languageServerFeatureOptions, documentMappingService, languageServer, logger)
+    {
+    }
+
+    protected override string CustomMessageTarget => RazorLanguageServerCustomMessageTargets.RazorPullDiagnosticEndpointName;
 
     public RegistrationExtensionResult GetRegistration(VSInternalClientCapabilities clientCapabilities)
     {
         return new RegistrationExtensionResult("_vs_supportsDiagnosticRequests", options: clientCapabilities.SupportsDiagnosticRequests);
     }
 
-    public TextDocumentIdentifier GetTextDocumentIdentifier(VSInternalDocumentDiagnosticsParams request)
+    protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(
+        VSInternalDocumentDiagnosticsParamsBridge request,
+        RazorRequestContext requestContext,
+        Projection projection,
+        CancellationToken cancellationToken)
     {
-        if (request.TextDocument is null)
-        {
-            throw new NotImplementedException("Why would document be null?");
-        }
-
-        return request.TextDocument;
-    }
-
-    public async Task<IEnumerable<VSInternalDiagnosticReport>?> HandleRequestAsync(VSInternalDocumentDiagnosticsParams request, RazorRequestContext context, CancellationToken cancellationToken)
-    {
-        var result = await GetPullDiagnosticsAsync(request, context, cancellationToken);
-
-        return result;
-    }
-
-    private async Task<IEnumerable<VSInternalDiagnosticReport>?> GetPullDiagnosticsAsync(VSInternalDocumentDiagnosticsParams request, RazorRequestContext requestContext, CancellationToken cancellationToken)
-    {
-        var clientNotifier = requestContext.GetRequiredService<ClientNotifierServiceBase>();
         var documentContext = requestContext.GetRequiredDocumentContext();
         var versionedTextDocumentIdentifier = new VersionedTextDocumentIdentifier
         {
             Uri = request.TextDocument!.Uri,
             Version = documentContext.Version,
         };
+        var delegatedParams = new DelegatedDiagnosticParams(versionedTextDocumentIdentifier, RazorLanguageKind.CSharp);
 
-        var delegatedParams = new DelegatedDiagnosticParams(versionedTextDocumentIdentifier);
-
-        var result = await clientNotifier.SendRequestAsync<DelegatedDiagnosticParams, VSInternalDiagnosticReport[]?>(
-            RazorLanguageServerCustomMessageTargets.RazorPullDiagnosticEndpointName,
-            delegatedParams,
-            cancellationToken);
-
-        var mappingService = requestContext.GetRequiredService<RazorDocumentMappingService>();
-        var codeDocument = await documentContext.GetCodeDocumentAsync(cancellationToken);
-
-        var mappedResults = MapDelegatedResults(result, codeDocument, mappingService);
-
-        return mappedResults;
+        return Task.FromResult<IDelegatedParams?>(delegatedParams);
     }
 
-    private IEnumerable<VSInternalDiagnosticReport> MapDelegatedResults(IEnumerable<VSInternalDiagnosticReport>? reports, RazorCodeDocument codeDocument, RazorDocumentMappingService mappingService)
+    protected override async Task<IEnumerable<VSInternalDiagnosticReport>> HandleDelegatedResponseAsync(IEnumerable<VSInternalDiagnosticReport> delegatedResponse, VSInternalDocumentDiagnosticsParamsBridge originalRequest, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
     {
-        if (reports is null)
-        {
-            return Array.Empty<VSInternalDiagnosticReport>();
-        }
+        var documentContext = requestContext.GetRequiredDocumentContext();
+        var codeDocument = await documentContext.GetCodeDocumentAsync(cancellationToken);
 
-        foreach (var report in reports)
+        foreach(var report in delegatedResponse)
         {
             if (report.Diagnostics is not null)
             {
-                foreach (var diagnostic in report.Diagnostics)
+                foreach(var diagnostic in report.Diagnostics)
                 {
-                    if (mappingService.TryMapFromProjectedDocumentRange(codeDocument, diagnostic.Range, out var razorRange))
+                    if(_documentMappingService.TryMapFromProjectedDocumentRange(codeDocument, diagnostic.Range, out var razorRange))
                     {
                         diagnostic.Range = razorRange;
                     }
@@ -85,6 +75,6 @@ internal class RazorPullDiagnosticsEndpoint : IRazorPullDiagnosticsEndpoint
             }
         }
 
-        return reports;
+        return delegatedResponse;
     }
 }

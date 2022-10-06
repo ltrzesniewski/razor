@@ -1111,32 +1111,6 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
                 return null;
             }
 
-            if (!documentSnapshot.TryGetVirtualDocument<HtmlVirtualDocumentSnapshot>(out var htmlVirtualDocument))
-            {
-                throw new NotImplementedException("HtmlDocument couldn't be retrieved");
-            }
-
-            var htmlSynchronized = await _documentSynchronizer.TrySynchronizeVirtualDocumentAsync(request.HostDocument.Version, htmlVirtualDocument, rejectOnNewerParallelRequest: false, cancellationToken);
-            if (!htmlSynchronized)
-            {
-                return null;
-            }
-
-            var htmlRequest = new VSInternalDocumentDiagnosticsParams
-            {
-                TextDocument = new TextDocumentIdentifier
-                {
-                    Uri = htmlVirtualDocument.Uri,
-                },
-            };
-
-            var htmlResponses = await _requestInvoker.ReinvokeRequestOnMultipleServersAsync<VSInternalDocumentDiagnosticsParams, VSInternalDiagnosticReport[]?>(
-                VSInternalMethods.DocumentPullDiagnosticName,
-                RazorLSPConstants.HtmlLSPContentTypeName,
-                htmlRequest,
-                cancellationToken);
-            var htmlResults = htmlResponses.SelectMany(h => h.Result!);
-
             if (!documentSnapshot.TryGetVirtualDocument<CSharpVirtualDocumentSnapshot>(out var csharpVirtualDocument))
             {
                 throw new NotImplementedException("HtmlDocument couldn't be retrieved");
@@ -1155,7 +1129,6 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
                     Uri = csharpVirtualDocument.Uri,
                 },
             };
-
             var csharpResponse = await _requestInvoker.ReinvokeRequestOnMultipleServersAsync<VSInternalDocumentDiagnosticsParams, VSInternalDiagnosticReport[]?>(
                 VSInternalMethods.DocumentPullDiagnosticName,
                 RazorLSPConstants.CSharpContentTypeName,
@@ -1164,7 +1137,7 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
 
             var csharpResults = csharpResponse.SelectMany(h => h.Result!);
 
-            return htmlResults.Concat(csharpResults);
+            return csharpResults;
         }
 
         private async Task<TResult?> DelegateTextDocumentPositionRequestAsync<TResult>(DelegatedPositionParams request, string methodName, CancellationToken cancellationToken)

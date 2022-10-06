@@ -23,6 +23,7 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
 
         public const string HtmlLSPDelegationContentTypeName = "html-delegation";
 
+        public const string HtmlLSPServerContentTypeName = "htmlLSPServer";
         public const string HtmlLSPContentTypeName = "htmlLSPClient";
 
         public const string CssLSPContentTypeName = "cssLSPClient";
