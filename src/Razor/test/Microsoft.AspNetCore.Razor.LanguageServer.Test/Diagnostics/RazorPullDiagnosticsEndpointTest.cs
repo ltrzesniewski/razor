@@ -7,28 +7,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.CodeGeneration;
-using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.Diagnostics;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
-using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
-using Microsoft.AspNetCore.Razor.LanguageServer.Test.Common;
-using Microsoft.AspNetCore.Razor.Test.Common;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
-using Moq;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
 {
-    public class RazorPullDiagnosticsEndpointTest : LanguageServerTestBase
+    public class RazorPullDiagnosticsEndpointTest : SingleServerDelegatingEndpointTestBase
     {
-        private readonly RazorDocumentMappingService _mappingService;
-
         public RazorPullDiagnosticsEndpointTest(ITestOutputHelper testOutput)
             : base(testOutput)
         {
-            _mappingService = new DefaultRazorDocumentMappingService(
-                TestLanguageServerFeatureOptions.Instance, new TestDocumentContextFactory(), LoggerFactory);
         }
 
         [Fact]
@@ -36,7 +27,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
         {
             // Arrange
             var uri = new Uri("C:/path/to/document.cshtml");
-            var endpoint = GetEndpoint(useSingleServer: false);
+            var endpoint = new RazorPullDiagnosticsEndpoint(LanguageServerFeatureOptions, DocumentMappingService, LanguageServer, Logger);
             var request = new VSInternalDocumentDiagnosticsParamsBridge
             {
                 TextDocument = new TextDocumentIdentifier
@@ -44,6 +35,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
                     Uri = uri,
                 },
             };
+
             var codeDocument = CreateCodeDocumentWithCSharpProjection(
                 " @{ void Foo< @* Comment! *@ TValue>() {} }  ",
                 "    void Foo<  TValue>() {} ",
@@ -89,12 +81,9 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
                     },
                 },
             };
-            var languageServer = new Mock<ClientNotifierServiceBase>(MockBehavior.Strict);
-            languageServer
-                .Setup(client => client.SendRequestAsync<IDelegatedParams, IEnumerable<VSInternalDiagnosticReport>?>(
-                    RazorLanguageServerCustomMessageTargets.RazorPullDiagnosticEndpointName, It.IsAny<DelegatedDiagnosticParams>(), DisposalToken))
-                .ReturnsAsync(cSharpDiagnostics);
-            var endpoint = GetEndpoint(useSingleServer: true, languageServer.Object);
+            var codeDocument = CreateCodeDocument(" @{ void Foo< @* Comment! *@ TValue>() {} }  ");
+            await CreateLanguageServerAsync(codeDocument, uri.ToString());
+            var endpoint = new RazorPullDiagnosticsEndpoint(LanguageServerFeatureOptions, DocumentMappingService, LanguageServer, Logger);
             var request = new VSInternalDocumentDiagnosticsParamsBridge
             {
                 TextDocument = new TextDocumentIdentifier
@@ -102,20 +91,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
                     Uri = uri,
                 },
             };
-            var codeDocument = CreateCodeDocumentWithCSharpProjection(
-                " @{ void Foo< @* Comment! *@ TValue>() {} }  ",
-                "    void Foo<  TValue>() {} ",
-                new[] {
-                    // "Foo< "
-                    new SourceMapping(
-                        new SourceSpan(3, 11),
-                        new SourceSpan(3, 11)),
-
-                    // " TValue>"
-                    new SourceMapping(
-                        new SourceSpan(28, 14),
-                        new SourceSpan(15, 13)),
-                });
             var documentContext = CreateDocumentContext(uri, codeDocument);
             var requestContext = CreateRazorRequestContext(documentContext);
 
@@ -138,15 +113,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
                         Assert.Equal(expectedRange, diagnostics.Range);
                     });
                 });
-        }
-
-        private RazorPullDiagnosticsEndpoint GetEndpoint(bool useSingleServer, ClientNotifierServiceBase? languageServer = null)
-        {
-            var languageServerFeatureOptions = new TestLanguageServerFeatureOptions(singleServerSupport: useSingleServer);
-            languageServer ??= new Mock<ClientNotifierServiceBase>(MockBehavior.Strict).Object;
-            var endpoint = new RazorPullDiagnosticsEndpoint(languageServerFeatureOptions, _mappingService, languageServer, Logger);
-
-            return endpoint;
         }
 
         private static RazorCodeDocument CreateCodeDocumentWithCSharpProjection(

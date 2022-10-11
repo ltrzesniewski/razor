@@ -4,8 +4,10 @@
 #nullable disable
 
 using System;
+using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
@@ -15,9 +17,12 @@ using Microsoft.AspNetCore.Razor.Test.Common.Mef;
 using Microsoft.CodeAnalysis.Razor.Workspaces;
 using Microsoft.CodeAnalysis.Razor.Workspaces.Extensions;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
+
 using Moq;
+
 using Xunit;
 using Xunit.Abstractions;
+
 using DefinitionResult = Microsoft.VisualStudio.LanguageServer.Protocol.SumType<
     Microsoft.VisualStudio.LanguageServer.Protocol.VSInternalLocation,
     Microsoft.VisualStudio.LanguageServer.Protocol.VSInternalLocation[],
@@ -50,7 +55,10 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
             var csharpServer = await CSharpTestLspServerHelpers.CreateCSharpLspServerAsync(
                 csharpSourceText,
                 csharpDocumentUri,
-                new ServerCapabilities(),
+                new VSInternalServerCapabilities
+                {
+                    SupportsDiagnosticRequests = true,
+                },
                 razorSpanMappingService: null,
                 DisposalToken);
 
@@ -103,10 +111,29 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
                     RazorLanguageServerCustomMessageTargets.RazorRenameEndpointName => await HandleRenameAsync(@params),
                     RazorLanguageServerCustomMessageTargets.RazorOnAutoInsertEndpointName => await HandleOnAutoInsertAsync(@params),
                     RazorLanguageServerCustomMessageTargets.RazorValidateBreakpointRangeName => await HandleValidateBreakpointRangeAsync(@params),
+                    RazorLanguageServerCustomMessageTargets.RazorPullDiagnosticEndpointName => await HandlePullDiagnosticsAsync(@params),
                     _ => throw new NotImplementedException($"I don't know how to handle the '{method}' method.")
-                };
+                }; ;
 
                 return (TResponse)result;
+            }
+
+            private async Task<VSInternalDiagnosticReport[]> HandlePullDiagnosticsAsync<T>(T @params)
+            {
+                _ = Assert.IsType<DelegatedDiagnosticParams>(@params);
+                var delegatedRequest = new VSInternalDocumentDiagnosticsParams
+                {
+                    TextDocument = new TextDocumentIdentifier()
+                    {
+                        Uri = _csharpDocumentUri,
+                    },
+                };
+                var result = await _csharpServer.ExecuteRequestAsync<VSInternalDocumentDiagnosticsParams, VSInternalDiagnosticReport[]>(
+                    VSInternalMethods.DocumentPullDiagnosticName,
+                    delegatedRequest,
+                    _cancellationToken);
+
+                return result;
             }
 
             private async Task<DefinitionResult?> HandleDefinitionAsync<T>(T @params)

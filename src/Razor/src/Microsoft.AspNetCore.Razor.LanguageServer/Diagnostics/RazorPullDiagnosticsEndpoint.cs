@@ -30,7 +30,7 @@ internal class RazorPullDiagnosticsEndpoint
 
     public RegistrationExtensionResult GetRegistration(VSInternalClientCapabilities clientCapabilities)
     {
-        return new RegistrationExtensionResult("_vs_supportsDiagnosticRequests", options: clientCapabilities.SupportsDiagnosticRequests);
+        return new RegistrationExtensionResult("_vs_supportsDiagnosticRequests", options: true);
     }
 
     protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(
@@ -40,12 +40,7 @@ internal class RazorPullDiagnosticsEndpoint
         CancellationToken cancellationToken)
     {
         var documentContext = requestContext.GetRequiredDocumentContext();
-        var versionedTextDocumentIdentifier = new VersionedTextDocumentIdentifier
-        {
-            Uri = request.TextDocument!.Uri,
-            Version = documentContext.Version,
-        };
-        var delegatedParams = new DelegatedDiagnosticParams(versionedTextDocumentIdentifier, RazorLanguageKind.CSharp);
+        var delegatedParams = new DelegatedDiagnosticParams(documentContext.Identifier, RazorLanguageKind.CSharp);
 
         return Task.FromResult<IDelegatedParams?>(delegatedParams);
     }
