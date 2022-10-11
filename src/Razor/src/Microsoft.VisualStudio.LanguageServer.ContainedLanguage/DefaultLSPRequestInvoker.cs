@@ -49,11 +49,16 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
 
         public override Task<IEnumerable<ReinvokeResponse<TOut>>> ReinvokeRequestOnMultipleServersAsync<TIn, TOut>(string method, string contentType, TIn parameters, CancellationToken cancellationToken)
         {
-            var capabilitiesFilter = _fallbackCapabilitiesFilterResolver.Resolve(method);
+            var capabilitiesFilter = _fallbackCapabilitiesFilterResolver.Resolve<TIn>(method);
             return RequestMultipleServerCoreAsync<TIn, TOut>(method, contentType, capabilitiesFilter, parameters, cancellationToken);
         }
 
         public override Task<IEnumerable<ReinvokeResponse<TOut>>> ReinvokeRequestOnMultipleServersAsync<TIn, TOut>(string method, string contentType, Func<JToken, bool> capabilitiesFilter, TIn parameters, CancellationToken cancellationToken)
+        {
+            return RequestMultipleServerCoreAsync<TIn, TOut>(method, contentType, (token, parameters) => capabilitiesFilter(token), parameters, cancellationToken);
+        }
+
+        public override Task<IEnumerable<ReinvokeResponse<TOut>>> ReinvokeRequestOnMultipleServersAsync<TIn, TOut>(string method, string contentType, Func<JToken, TIn, bool> capabilitiesFilter, TIn parameters, CancellationToken cancellationToken)
         {
             return RequestMultipleServerCoreAsync<TIn, TOut>(method, contentType, capabilitiesFilter, parameters, cancellationToken);
         }
@@ -64,7 +69,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
             TIn parameters,
             CancellationToken cancellationToken)
         {
-            var capabilitiesFilter = _fallbackCapabilitiesFilterResolver.Resolve(method);
+            var capabilitiesFilter = _fallbackCapabilitiesFilterResolver.Resolve<TIn>(method);
             return ReinvokeRequestOnServerAsync<TIn, TOut>(method, languageServerName, capabilitiesFilter, parameters, cancellationToken);
         }
 
@@ -72,6 +77,16 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
             string method,
             string languageServerName,
             Func<JToken, bool> capabilitiesFilter,
+            TIn parameters,
+            CancellationToken cancellationToken)
+        {
+            return await ReinvokeRequestOnServerAsync<TIn, TOut>(method, languageServerName, (token, parameter) => capabilitiesFilter(token), parameters, cancellationToken);
+        }
+
+        public override async Task<ReinvokeResponse<TOut>> ReinvokeRequestOnServerAsync<TIn, TOut>(
+            string method,
+            string languageServerName,
+            Func<JToken, TIn, bool> capabilitiesFilter,
             TIn parameters,
             CancellationToken cancellationToken)
         {
@@ -83,7 +98,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
             var serializedParams = JToken.FromObject(parameters);
             var (languageClient, resultToken) = await _languageServiceBroker.RequestAsync(
                 Array.Empty<string>(),
-                capabilitiesFilter,
+                (token) => capabilitiesFilter(token, parameters),
                 languageServerName,
                 method,
                 serializedParams,
@@ -95,7 +110,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
 
         public override Task<ReinvocationResponse<TOut>?> ReinvokeRequestOnServerAsync<TIn, TOut>(ITextBuffer textBuffer, string method, string languageServerName, TIn parameters, CancellationToken cancellationToken)
         {
-            var capabilitiesFilter = _fallbackCapabilitiesFilterResolver.Resolve(method);
+            var capabilitiesFilter = _fallbackCapabilitiesFilterResolver.Resolve<TIn>(method);
             return ReinvokeRequestOnServerAsync<TIn, TOut>(textBuffer, method, languageServerName, capabilitiesFilter, parameters, cancellationToken);
         }
 
@@ -107,6 +122,17 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
             TIn parameters,
             CancellationToken cancellationToken)
         {
+            return await ReinvokeRequestOnServerAsync<TIn, TOut>(textBuffer, method, languageServerName, (token, parameter) => capabilitiesFilter(token), parameters, cancellationToken);
+        }
+
+        public override async Task<ReinvocationResponse<TOut>?> ReinvokeRequestOnServerAsync<TIn, TOut>(
+            ITextBuffer textBuffer,
+            string method,
+            string languageServerName,
+            Func<JToken, TIn, bool> capabilitiesFilter,
+            TIn parameters,
+            CancellationToken cancellationToken)
+        {
             var serializedParams = JToken.FromObject(parameters);
             JToken ParameterFactory(ITextSnapshot _)
             {
@@ -115,7 +141,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
 
             var response = await _languageServiceBroker.RequestAsync(
                 textBuffer,
-                capabilitiesFilter,
+                (token) => capabilitiesFilter(token, parameters),
                 languageServerName,
                 method,
                 ParameterFactory,
@@ -136,7 +162,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
             return reinvocationResponse;
         }
 
-        private async Task<IEnumerable<ReinvokeResponse<TOut>>> RequestMultipleServerCoreAsync<TIn, TOut>(string method, string contentType, Func<JToken, bool> capabilitiesFilter, TIn parameters, CancellationToken cancellationToken)
+        private async Task<IEnumerable<ReinvokeResponse<TOut>>> RequestMultipleServerCoreAsync<TIn, TOut>(string method, string contentType, Func<JToken, TIn, bool> capabilitiesFilter, TIn parameters, CancellationToken cancellationToken)
             where TIn : notnull
         {
             if (string.IsNullOrEmpty(method))
@@ -149,7 +175,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
 #pragma warning disable CS0618 // Type or member is obsolete
             var clientAndResultTokenPairs = await _languageServiceBroker.RequestMultipleAsync(
                 new[] { contentType },
-                capabilitiesFilter,
+                (token) => capabilitiesFilter(token, parameters),
                 method,
                 serializedParams,
                 cancellationToken).ConfigureAwait(false);
@@ -167,14 +193,24 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
             TIn parameters,
             CancellationToken cancellationToken)
         {
-            var capabilitiesFilter = _fallbackCapabilitiesFilterResolver.Resolve(method);
+            var capabilitiesFilter = _fallbackCapabilitiesFilterResolver.Resolve<TIn>(method);
             return ReinvokeRequestOnMultipleServersAsync<TIn, TOut>(textBuffer, method, capabilitiesFilter, parameters, cancellationToken);
+        }
+
+        public override IAsyncEnumerable<ReinvocationResponse<TOut>> ReinvokeRequestOnMultipleServersAsync<TIn, TOut>(
+            ITextBuffer textBuffer,
+            string method,
+            Func<JToken, bool> capabilitiesFilter,
+            TIn parameters,
+            CancellationToken cancellationToken)
+        {
+            return ReinvokeRequestOnMultipleServersAsync<TIn, TOut>(textBuffer, method, (token, parameters) => capabilitiesFilter(token), parameters, cancellationToken);
         }
 
         public override async IAsyncEnumerable<ReinvocationResponse<TOut>> ReinvokeRequestOnMultipleServersAsync<TIn, TOut>(
             ITextBuffer textBuffer,
             string method,
-            Func<JToken, bool> capabilitiesFilter,
+            Func<JToken, TIn, bool> capabilitiesFilter,
             TIn parameters,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
@@ -183,7 +219,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
 
             var requests = _languageServiceBroker.RequestMultipleAsync(
                 textBuffer,
-                capabilitiesFilter,
+                (token) => capabilitiesFilter(token, parameters),
                 method,
                 parameterFactory,
                 cancellationToken);

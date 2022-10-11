@@ -5,6 +5,7 @@
 
 using System;
 using System.ComponentModel.Composition;
+using System.Linq;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Newtonsoft.Json.Linq;
 
@@ -13,7 +14,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
     [Export(typeof(FallbackCapabilitiesFilterResolver))]
     internal class DefaultFallbackCapabilitiesFilterResolver : FallbackCapabilitiesFilterResolver
     {
-        public override Func<JToken, bool> Resolve(string lspRequestMethodName)
+        public override Func<JToken, TIn, bool> Resolve<TIn>(string lspRequestMethodName)
         {
             if (lspRequestMethodName is null)
             {
@@ -91,7 +92,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
             }
         }
 
-        private bool CheckDocumentColorCapabilities(JToken token)
+        private static bool CheckDocumentColorCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -100,14 +101,14 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckSemanticTokensCapabilities(JToken token)
+        private static bool CheckSemanticTokensCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<VSServerCapabilities>();
 
             return serverCapabilities?.SemanticTokensOptions != null;
         }
 
-        private static bool CheckImplementationCapabilities(JToken token)
+        private static bool CheckImplementationCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -116,7 +117,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private bool CheckTypeDefinitionCapabilities(JToken token)
+        private static bool CheckTypeDefinitionCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -125,7 +126,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckFindAllReferencesCapabilities(JToken token)
+        private static bool CheckFindAllReferencesCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -134,7 +135,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckRenameCapabilities(JToken token)
+        private static bool CheckRenameCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -143,28 +144,28 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckSignatureHelpCapabilities(JToken token)
+        private static bool CheckSignatureHelpCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
             return serverCapabilities?.SignatureHelpProvider != null;
         }
 
-        private static bool CheckWillSaveCapabilities(JToken token)
+        private static bool CheckWillSaveCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
             return serverCapabilities?.TextDocumentSync?.WillSave == true;
         }
 
-        private static bool CheckWillSaveWaitUntilCapabilities(JToken token)
+        private static bool CheckWillSaveWaitUntilCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
             return serverCapabilities?.TextDocumentSync?.WillSaveWaitUntil == true;
         }
 
-        private static bool CheckRangeFormattingCapabilities(JToken token)
+        private static bool CheckRangeFormattingCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -173,7 +174,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckWorkspaceSymbolCapabilities(JToken token)
+        private static bool CheckWorkspaceSymbolCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -182,14 +183,24 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckOnTypeFormattingCapabilities(JToken token)
+        private static bool CheckOnTypeFormattingCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
-            return serverCapabilities?.DocumentOnTypeFormattingProvider != null;
+            if (serverCapabilities?.DocumentOnTypeFormattingProvider is DocumentOnTypeFormattingOptions formattingOptions
+                && parameters is DocumentOnTypeFormattingParams formattingParams)
+            {
+                if (formattingOptions.FirstTriggerCharacter == formattingParams.Character
+                    || formattingOptions.MoreTriggerCharacter.Contains(formattingParams.Character))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
-        private static bool CheckFormattingCapabilities(JToken token)
+        private static bool CheckFormattingCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -198,7 +209,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckHoverCapabilities(JToken token)
+        private static bool CheckHoverCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -207,7 +218,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckCodeActionCapabilities(JToken token)
+        private static bool CheckCodeActionCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -216,28 +227,28 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckCodeLensCapabilities(JToken token)
+        private static bool CheckCodeLensCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
             return serverCapabilities?.CodeLensProvider != null;
         }
 
-        private static bool CheckCompletionCapabilities(JToken token)
+        private static bool CheckCompletionCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
             return serverCapabilities?.CompletionProvider != null;
         }
 
-        private static bool CheckCompletionResolveCapabilities(JToken token)
+        private static bool CheckCompletionResolveCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
             return serverCapabilities?.CompletionProvider?.ResolveProvider == true;
         }
 
-        private static bool CheckDefinitionCapabilities(JToken token)
+        private static bool CheckDefinitionCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -246,7 +257,7 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckHighlightCapabilities(JToken token)
+        private static bool CheckHighlightCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -255,21 +266,21 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
                 options => options != null) ?? false;
         }
 
-        private static bool CheckMSReferencesCapabilities(JToken token)
+        private static bool CheckMSReferencesCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<VSInternalServerCapabilities>();
 
             return serverCapabilities?.MSReferencesProvider == true;
         }
 
-        private static bool CheckProjectContextsCapabilities(JToken token)
+        private static bool CheckProjectContextsCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<VSInternalServerCapabilities>();
 
             return serverCapabilities?.ProjectContextProvider == true;
         }
 
-        private static bool CheckCodeActionResolveCapabilities(JToken token)
+        private static bool CheckCodeActionResolveCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -280,27 +291,27 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
             return resolvesCodeActions;
         }
 
-        private static bool CheckOnAutoInsertCapabilities(JToken token)
+        private static bool CheckOnAutoInsertCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<VSInternalServerCapabilities>();
 
             return serverCapabilities?.OnAutoInsertProvider != null;
         }
 
-        private static bool CheckTextPresentationCapabilities(JToken token)
+        private static bool CheckTextPresentationCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<VSInternalServerCapabilities>();
 
             return serverCapabilities?.TextPresentationProvider == true;
         }
-        private static bool CheckUriPresentationCapabilities(JToken token)
+        private static bool CheckUriPresentationCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<VSInternalServerCapabilities>();
 
             return serverCapabilities?.UriPresentationProvider == true;
         }
 
-        private static bool CheckLinkedEditingRangeCapabilities(JToken token)
+        private static bool CheckLinkedEditingRangeCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<ServerCapabilities>();
 
@@ -309,14 +320,14 @@ namespace Microsoft.VisualStudio.LanguageServer.ContainedLanguage
               options => options != null) ?? false;
         }
 
-        private static bool CheckPullDiagnosticCapabilities(JToken token)
+        private static bool CheckPullDiagnosticCapabilities<TIn>(JToken token, TIn parameters)
         {
             var serverCapabilities = token.ToObject<VSInternalServerCapabilities>();
 
             return serverCapabilities?.SupportsDiagnosticRequests == true;
         }
 
-        private bool FallbackCheckCapabilties(JToken token)
+        private static bool FallbackCheckCapabilties<TIn>(JToken token, TIn parameters)
         {
             // Fallback is to assume present
 
