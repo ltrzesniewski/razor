@@ -64,7 +64,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
         /// value is returned the request will be delegated to C#/HTML servers, otherwise the response
         /// will be used in <see cref="HandleRequestAsync(TRequest, RazorRequestContext, CancellationToken)"/>
         /// </summary>
-        protected virtual Task<TResponse?> TryHandleAsync(TRequest request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected virtual Task<TResponse?> TryHandleAsync(TRequest request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
             => Task.FromResult<TResponse?>(default);
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
             }
             else
             {
-                projection = new Projection(RazorLanguageKind.CSharp, new Position(-1, -1), -1);
+                projection = null;
             }
 
             var response = await TryHandleAsync(request, requestContext, projection, cancellationToken).ConfigureAwait(false);
@@ -122,7 +122,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
 
             // We can only delegate to C# and HTML, so if we're in a Razor context and our inheritor didn't want to provide
             // any response then that's all we can do.
-            if (projection.LanguageKind == RazorLanguageKind.Razor)
+            if (projection is null || projection.LanguageKind == RazorLanguageKind.Razor)
             {
                 return default;
             }

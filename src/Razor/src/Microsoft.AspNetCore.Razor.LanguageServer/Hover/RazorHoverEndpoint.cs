@@ -54,8 +54,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Hover
                     projection.LanguageKind));
         }
 
-        protected override async Task<VSInternalHover?> TryHandleAsync(TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override async Task<VSInternalHover?> TryHandleAsync(TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"{nameof(projection)} should not be null for {nameof(RazorHoverEndpoint)}.");
+            }
+
             var documentContext = requestContext.GetRequiredDocumentContext();
             // HTML can still sometimes be handled by razor. For example hovering over
             // a component tag like <Counter /> will still be in an html context

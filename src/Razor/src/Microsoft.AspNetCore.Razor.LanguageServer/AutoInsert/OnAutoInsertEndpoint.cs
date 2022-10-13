@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common.Extensions;
+using Microsoft.AspNetCore.Razor.LanguageServer.Definition;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
 using Microsoft.AspNetCore.Razor.LanguageServer.Extensions;
 using Microsoft.AspNetCore.Razor.LanguageServer.Formatting;
@@ -59,8 +60,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.AutoInsert
             return new RegistrationExtensionResult(AssociatedServerCapability, registrationOptions);
         }
 
-        protected override async Task<VSInternalDocumentOnAutoInsertResponseItem?> TryHandleAsync(OnAutoInsertParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override async Task<VSInternalDocumentOnAutoInsertResponseItem?> TryHandleAsync(OnAutoInsertParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"{nameof(projection)} should not be null for {nameof(OnAutoInsertEndpoint)}.");
+            }
+
             var documentContext = requestContext.GetRequiredDocumentContext();
             var codeDocument = await documentContext.GetCodeDocumentAsync(cancellationToken).ConfigureAwait(false);
             if (codeDocument.IsUnsupported())

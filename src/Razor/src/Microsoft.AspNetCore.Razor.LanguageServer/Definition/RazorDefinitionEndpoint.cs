@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Razor.Language.Syntax;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
 using Microsoft.AspNetCore.Razor.LanguageServer.Extensions;
+using Microsoft.AspNetCore.Razor.LanguageServer.Hover;
 using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -51,8 +52,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Definition
             return new RegistrationExtensionResult(ServerCapability, option);
         }
 
-        protected async override Task<DefinitionResult?> TryHandleAsync(TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected async override Task<DefinitionResult?> TryHandleAsync(TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"{nameof(projection)} should not be null for {nameof(RazorDefinitionEndpoint)}.");
+            }
+
             requestContext.Logger.LogInformation("Starting go-to-def endpoint request.");
             var documentContext = requestContext.GetRequiredDocumentContext();
 

@@ -63,8 +63,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Refactoring
 
         protected override string CustomMessageTarget => RazorLanguageServerCustomMessageTargets.RazorRenameEndpointName;
 
-        protected override async Task<WorkspaceEdit?> TryHandleAsync(RenameParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override async Task<WorkspaceEdit?> TryHandleAsync(RenameParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"{nameof(projection)} should not be null for {nameof(RenameEndpoint)}.");
+            }
+
             var documentContext = requestContext.GetRequiredDocumentContext();
             // We only support renaming of .razor components, not .cshtml tag helpers
             if (!FileKinds.IsComponent(documentContext.FileKind))

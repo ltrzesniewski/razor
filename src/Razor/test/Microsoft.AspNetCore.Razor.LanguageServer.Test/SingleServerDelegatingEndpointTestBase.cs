@@ -46,7 +46,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
         {
         }
 
-        protected async Task CreateLanguageServerAsync(RazorCodeDocument codeDocument, string razorFilePath)
+        protected async Task CreateLanguageServerAsync(RazorCodeDocument codeDocument, string razorFilePath, bool singleServerSupport = true)
         {
             var realLanguageServerFeatureOptions = new DefaultLanguageServerFeatureOptions();
 
@@ -69,7 +69,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
             DocumentContextFactory = new TestDocumentContextFactory(razorFilePath, codeDocument, version: 1337);
             LanguageServerFeatureOptions = Mock.Of<LanguageServerFeatureOptions>(options =>
                 options.SupportsFileManipulation == true &&
-                options.SingleServerSupport == true &&
+                options.SingleServerSupport == singleServerSupport &&
                 options.CSharpVirtualDocumentSuffix == realLanguageServerFeatureOptions.CSharpVirtualDocumentSuffix &&
                 options.HtmlVirtualDocumentSuffix == realLanguageServerFeatureOptions.HtmlVirtualDocumentSuffix,
                 MockBehavior.Strict);

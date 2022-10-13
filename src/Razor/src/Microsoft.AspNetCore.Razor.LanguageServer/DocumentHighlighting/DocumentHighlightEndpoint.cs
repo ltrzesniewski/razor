@@ -37,7 +37,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.DocumentHighlighting
 
         protected override string CustomMessageTarget => RazorLanguageServerCustomMessageTargets.RazorDocumentHighlightEndpointName;
 
-        protected override Task<DocumentHighlight[]?> TryHandleAsync(DocumentHighlightParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override Task<DocumentHighlight[]?> TryHandleAsync(DocumentHighlightParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
             // We don't handle this in any particular way for Razor, we just delegate
             return Task.FromResult<DocumentHighlight[]?>(null);

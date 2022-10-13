@@ -34,7 +34,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Debugging
             return new RegistrationExtensionResult(ServerCapability, true);
         }
 
-        protected override Task<Range?> TryHandleAsync(ValidateBreakpointRangeParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override Task<Range?> TryHandleAsync(ValidateBreakpointRangeParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
             // no such thing as Razor breakpoints (yet?!)
             return Task.FromResult<Range?>(null);

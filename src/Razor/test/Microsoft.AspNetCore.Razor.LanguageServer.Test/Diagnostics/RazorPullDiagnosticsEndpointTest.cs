@@ -27,7 +27,6 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
         {
             // Arrange
             var uri = new Uri("C:/path/to/document.cshtml");
-            var endpoint = new RazorPullDiagnosticsEndpoint(LanguageServerFeatureOptions, DocumentMappingService, LanguageServer, Logger);
             var request = new VSInternalDocumentDiagnosticsParamsBridge
             {
                 TextDocument = new TextDocumentIdentifier
@@ -50,6 +49,9 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
                         new SourceSpan(28, 14),
                         new SourceSpan(15, 13)),
                 });
+            await CreateLanguageServerAsync(codeDocument, uri.ToString(), singleServerSupport: false);
+
+            var endpoint = new RazorPullDiagnosticsEndpoint(LanguageServerFeatureOptions, DocumentMappingService, LanguageServer, Logger);
             var documentContext = CreateDocumentContext(uri, codeDocument);
             var requestContext = CreateRazorRequestContext(documentContext);
 
