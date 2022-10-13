@@ -142,7 +142,6 @@ internal class RazorLanguageServer : AbstractLanguageServer<RazorRequestContext>
             services.AddRegisteringHandler<ImplementationEndpoint>();
             services.AddRegisteringHandler<SignatureHelpEndpoint>();
             services.AddRegisteringHandler<DocumentHighlightEndpoint>();
-            services.AddHandler<RazorDiagnosticsEndpoint>();
             services.AddHandler<RazorConfigurationEndpoint>();
             services.AddRegisteringHandler<OnAutoInsertEndpoint>();
             services.AddHandler<MonitorProjectConfigurationFilePathEndpoint>();
