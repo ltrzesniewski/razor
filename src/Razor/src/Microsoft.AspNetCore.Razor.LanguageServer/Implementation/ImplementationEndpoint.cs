@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT license. See License.txt in the project root for license information.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common;
@@ -36,8 +37,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Implementation
             return new RegistrationExtensionResult(ServerCapability, option);
         }
 
-        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"Projection should not be null for {nameof(ImplementationEndpoint)}.");
+            }
+
             var documentContext = requestContext.GetRequiredDocumentContext();
             return Task.FromResult<IDelegatedParams?>(new DelegatedPositionParams(
                     documentContext.Identifier,
@@ -45,7 +51,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Implementation
                     projection.LanguageKind));
         }
 
-        protected async override Task<ImplementationResult> HandleDelegatedResponseAsync(ImplementationResult delegatedResponse, TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected async override Task<ImplementationResult> HandleDelegatedResponseAsync(ImplementationResult delegatedResponse, TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
             // Not using .TryGetXXX because this does the null check for us too
             if (delegatedResponse.Value is Location[] locations)

@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Razor.LanguageServer.Definition;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
 using Microsoft.AspNetCore.Razor.LanguageServer.Extensions;
 using Microsoft.AspNetCore.Razor.LanguageServer.Formatting;
+using Microsoft.AspNetCore.Razor.LanguageServer.Implementation;
 using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
 using Microsoft.CodeAnalysis.Razor.Workspaces;
 using Microsoft.Extensions.Logging;
@@ -118,8 +119,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.AutoInsert
             return null;
         }
 
-        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(OnAutoInsertParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(OnAutoInsertParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"Projection should not be null for {nameof(OnAutoInsertEndpoint)}.");
+            }
+
             var documentContext = requestContext.GetRequiredDocumentContext();
             if (projection.LanguageKind == RazorLanguageKind.Html &&
                !s_htmlAllowedTriggerCharacters.Contains(request.Character))
@@ -146,9 +152,15 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.AutoInsert
             VSInternalDocumentOnAutoInsertResponseItem? delegatedResponse,
             OnAutoInsertParamsBridge originalRequest,
             RazorRequestContext requestContext,
-            Projection projection,
+            Projection? projection,
             CancellationToken cancellationToken)
         {
+
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"Projection should not be null for {nameof(OnAutoInsertEndpoint)}.");
+            }
+
             if (delegatedResponse is null)
             {
                 return null;

@@ -36,7 +36,7 @@ internal class RazorPullDiagnosticsEndpoint
     protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(
         VSInternalDocumentDiagnosticsParamsBridge request,
         RazorRequestContext requestContext,
-        Projection projection,
+        Projection? projection,
         CancellationToken cancellationToken)
     {
         var documentContext = requestContext.GetRequiredDocumentContext();
@@ -45,7 +45,7 @@ internal class RazorPullDiagnosticsEndpoint
         return Task.FromResult<IDelegatedParams?>(delegatedParams);
     }
 
-    protected override async Task<IEnumerable<VSInternalDiagnosticReport>> HandleDelegatedResponseAsync(IEnumerable<VSInternalDiagnosticReport> delegatedResponse, VSInternalDocumentDiagnosticsParamsBridge originalRequest, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+    protected override async Task<IEnumerable<VSInternalDiagnosticReport>> HandleDelegatedResponseAsync(IEnumerable<VSInternalDiagnosticReport> delegatedResponse, VSInternalDocumentDiagnosticsParamsBridge originalRequest, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
     {
         var documentContext = requestContext.GetRequiredDocumentContext();
         var codeDocument = await documentContext.GetCodeDocumentAsync(cancellationToken);

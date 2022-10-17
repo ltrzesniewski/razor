@@ -40,10 +40,10 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Debugging
             return Task.FromResult<Range?>(null);
         }
 
-        protected async override Task<IDelegatedParams?> CreateDelegatedParamsAsync(ValidateBreakpointRangeParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected async override Task<IDelegatedParams?> CreateDelegatedParamsAsync(ValidateBreakpointRangeParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
             // only C# supports breakpoints
-            if (projection.LanguageKind != RazorLanguageKind.CSharp)
+            if (projection is null || projection.LanguageKind != RazorLanguageKind.CSharp)
             {
                 return null;
             }
@@ -62,7 +62,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Debugging
                 projection.LanguageKind);
         }
 
-        protected async override Task<Range?> HandleDelegatedResponseAsync(Range? delegatedResponse, ValidateBreakpointRangeParamsBridge originalRequest, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected async override Task<Range?> HandleDelegatedResponseAsync(Range? delegatedResponse, ValidateBreakpointRangeParamsBridge originalRequest, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
             if (delegatedResponse is null)
             {

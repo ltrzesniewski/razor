@@ -51,12 +51,12 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
         /// <summary>
         /// The delegated object to send to the <see cref="CustomMessageTarget"/>
         /// </summary>
-        protected abstract Task<IDelegatedParams?> CreateDelegatedParamsAsync(TRequest request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken);
+        protected abstract Task<IDelegatedParams?> CreateDelegatedParamsAsync(TRequest request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken);
 
         /// <summary>
         /// If the response needs to be handled, such as for remapping positions back, override and handle here
         /// </summary>
-        protected virtual Task<TResponse> HandleDelegatedResponseAsync(TResponse delegatedResponse, TRequest originalRequest, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected virtual Task<TResponse> HandleDelegatedResponseAsync(TResponse delegatedResponse, TRequest originalRequest, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
             => Task.FromResult(delegatedResponse);
 
         /// <summary>
@@ -96,6 +96,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
             }
 
             Projection? projection;
+            var usesPosition = request is ITextDocumentPositionParams;
             if (request is ITextDocumentPositionParams positionParams)
             {
                 projection = await _documentMappingService.TryGetProjectionAsync(documentContext, positionParams.Position, requestContext.Logger, cancellationToken).ConfigureAwait(false);
@@ -122,7 +123,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer
 
             // We can only delegate to C# and HTML, so if we're in a Razor context and our inheritor didn't want to provide
             // any response then that's all we can do.
-            if (projection is null || projection.LanguageKind == RazorLanguageKind.Razor)
+            if ((projection is null || projection.LanguageKind == RazorLanguageKind.Razor) && usesPosition)
             {
                 return default;
             }

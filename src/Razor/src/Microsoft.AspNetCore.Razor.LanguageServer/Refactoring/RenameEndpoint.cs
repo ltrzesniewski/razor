@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.Common.Extensions;
 using Microsoft.AspNetCore.Razor.LanguageServer.EndpointContracts;
 using Microsoft.AspNetCore.Razor.LanguageServer.Extensions;
+using Microsoft.AspNetCore.Razor.LanguageServer.Hover;
 using Microsoft.AspNetCore.Razor.LanguageServer.Protocol;
 using Microsoft.CodeAnalysis.Razor;
 using Microsoft.CodeAnalysis.Razor.ProjectSystem;
@@ -89,8 +90,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Refactoring
         protected override bool IsSupported()
             => _languageServerFeatureOptions.SupportsFileManipulation;
 
-        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(RenameParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(RenameParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"{nameof(projection)} should not be null for {nameof(RenameEndpoint)}.");
+            }
+
             var documentContext = requestContext.GetRequiredDocumentContext();
             return Task.FromResult<IDelegatedParams?>(new DelegatedRenameParams(
                     documentContext.Identifier,
@@ -99,7 +105,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Refactoring
                     request.NewName));
         }
 
-        protected override async Task<WorkspaceEdit?> HandleDelegatedResponseAsync(WorkspaceEdit? response, RenameParamsBridge request, RazorRequestContext reqeuestContext, Projection projection, CancellationToken cancellationToken)
+        protected override async Task<WorkspaceEdit?> HandleDelegatedResponseAsync(WorkspaceEdit? response, RenameParamsBridge request, RazorRequestContext reqeuestContext, Projection? projection, CancellationToken cancellationToken)
         {
             if (response is null)
             {

@@ -45,8 +45,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Hover
 
         protected override string CustomMessageTarget => RazorLanguageServerCustomMessageTargets.RazorHoverEndpointName;
 
-        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(TextDocumentPositionParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                throw new ArgumentNullException($"{nameof(projection)} should not be null for {nameof(RazorHoverEndpoint)}.");
+            }
+
             var documentContext = requestContext.GetRequiredDocumentContext();
             return Task.FromResult<IDelegatedParams?>(new DelegatedPositionParams(
                     documentContext.Identifier,
@@ -75,7 +80,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Hover
             return _hoverInfoService.GetHoverInfo(codeDocument, location, _clientCapabilities!);
         }
 
-        protected override async Task<VSInternalHover?> HandleDelegatedResponseAsync(VSInternalHover? response, TextDocumentPositionParamsBridge originalRequest, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override async Task<VSInternalHover?> HandleDelegatedResponseAsync(VSInternalHover? response, TextDocumentPositionParamsBridge originalRequest, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
             if (response?.Range is null)
             {

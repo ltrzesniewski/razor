@@ -43,8 +43,13 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.DocumentHighlighting
             return Task.FromResult<DocumentHighlight[]?>(null);
         }
 
-        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(DocumentHighlightParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override Task<IDelegatedParams?> CreateDelegatedParamsAsync(DocumentHighlightParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
+            if (projection is null)
+            {
+                return Task.FromResult<IDelegatedParams?>(null);
+            }
+
             var documentContext = requestContext.GetRequiredDocumentContext();
             return Task.FromResult<IDelegatedParams?>(new DelegatedPositionParams(
                     documentContext.Identifier,
@@ -52,7 +57,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.DocumentHighlighting
                     projection.LanguageKind));
         }
 
-        protected override async Task<DocumentHighlight[]?> HandleDelegatedResponseAsync(DocumentHighlight[]? response, DocumentHighlightParamsBridge request, RazorRequestContext requestContext, Projection projection, CancellationToken cancellationToken)
+        protected override async Task<DocumentHighlight[]?> HandleDelegatedResponseAsync(DocumentHighlight[]? response, DocumentHighlightParamsBridge request, RazorRequestContext requestContext, Projection? projection, CancellationToken cancellationToken)
         {
             var documentContext = requestContext.GetRequiredDocumentContext();
             var codeDocument = await documentContext.GetCodeDocumentAsync(cancellationToken).ConfigureAwait(false);
