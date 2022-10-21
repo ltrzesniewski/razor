@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Razor.LanguageServer.Common;
 using Microsoft.AspNetCore.Razor.LanguageServer.Test;
 using Microsoft.AspNetCore.Razor.LanguageServer.Test.Common;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Microsoft.AspNetCore.Razor.LanguageServer.Formatting
 {
@@ -20,7 +19,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Formatting
         public static RazorFormattingService CreateWithFullSupport(RazorCodeDocument? codeDocument = null, ILoggerFactory? loggerFactory = null)
         {
             codeDocument ??= TestRazorCodeDocument.CreateEmpty();
-            loggerFactory ??= NullLoggerFactory.Instance;
+            loggerFactory ??= new LoggerFactory();
 
             var mappingService = new DefaultRazorDocumentMappingService(TestLanguageServerFeatureOptions.Instance, new TestDocumentContextFactory(), loggerFactory);
 
