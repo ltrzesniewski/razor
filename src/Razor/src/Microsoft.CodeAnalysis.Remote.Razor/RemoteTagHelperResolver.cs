@@ -16,6 +16,7 @@ namespace Microsoft.CodeAnalysis.Razor
         private readonly IFallbackProjectEngineFactory _fallbackFactory;
 
         public RemoteTagHelperResolver(IFallbackProjectEngineFactory fallbackFactory)
+            : base()
         {
             if (fallbackFactory is null)
             {

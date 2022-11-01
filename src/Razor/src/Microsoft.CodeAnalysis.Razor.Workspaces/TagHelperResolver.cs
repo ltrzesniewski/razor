@@ -1,13 +1,14 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT license. See License.txt in the project root for license information.
 
-#nullable disable
-
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Razor.Common.Telemetry;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Razor.ProjectSystem;
@@ -16,9 +17,16 @@ namespace Microsoft.CodeAnalysis.Razor
 {
     internal abstract class TagHelperResolver : IWorkspaceService
     {
+        private readonly ITelemetryReporter? _telemetryReporter;
+
+        public TagHelperResolver(ITelemetryReporter? telemetryReporter = null)
+        {
+            _telemetryReporter = telemetryReporter;
+        }
+
         public abstract Task<TagHelperResolutionResult> GetTagHelpersAsync(Project workspaceProject, ProjectSnapshot projectSnapshot, CancellationToken cancellationToken = default);
 
-        protected virtual async Task<TagHelperResolutionResult> GetTagHelpersAsync(Project workspaceProject, RazorProjectEngine engine, CancellationToken cancellationToken)
+        protected async Task<TagHelperResolutionResult> GetTagHelpersAsync(Project workspaceProject, RazorProjectEngine engine, CancellationToken cancellationToken)
         {
             if (workspaceProject is null)
             {
@@ -47,12 +55,21 @@ namespace Microsoft.CodeAnalysis.Razor
                 context.SetCompilation(compilation);
             }
 
+            var timingDictionary = new Dictionary<string, long>();
             for (var i = 0; i < providers.Length; i++)
             {
                 var provider = providers[i];
+                var stopWatch = Stopwatch.StartNew();
+
                 provider.Execute(context);
+
+                stopWatch.Stop();
+                var propertyName = $"razor.{provider.Name}.elapsedtimems";
+                Debug.Assert(!timingDictionary.ContainsKey(propertyName));
+                timingDictionary[propertyName] = stopWatch.ElapsedMilliseconds;
             }
 
+            _telemetryReporter?.ReportEvent("taghelperresolver/gettaghelpers", VisualStudio.Telemetry.TelemetrySeverity.Normal, timingDictionary.ToImmutableDictionary());
             return new TagHelperResolutionResult(results, Array.Empty<RazorDiagnostic>());
         }
 

@@ -7,6 +7,7 @@ namespace Microsoft.CodeAnalysis.Remote.Razor
 {
     internal sealed class RemoteTagHelperProviderServiceFactory : RazorServiceFactoryBase<IRemoteTagHelperProviderService>
     {
+        // WARNING: We must always have a parameterless constructor in order to be properly handled by ServiceHub.
         public RemoteTagHelperProviderServiceFactory() : base(RazorServiceDescriptors.TagHelperProviderServiceDescriptors)
         {
         }
