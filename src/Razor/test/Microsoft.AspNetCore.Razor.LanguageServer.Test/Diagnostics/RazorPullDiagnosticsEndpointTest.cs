@@ -109,6 +109,7 @@ namespace Microsoft.AspNetCore.Razor.LanguageServer.Test.Diagnostics
             Assert.Collection(result,
                 (report) =>
                 {
+                    Assert.NotNull(report.Diagnostics);
                     Assert.Collection(report.Diagnostics, (diagnostics) =>
                     {
                         Assert.Equal("Message", diagnostics.Message);

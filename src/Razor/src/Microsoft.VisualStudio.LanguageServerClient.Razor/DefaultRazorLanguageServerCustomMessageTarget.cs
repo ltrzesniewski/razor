@@ -1048,18 +1048,11 @@ namespace Microsoft.VisualStudio.LanguageServerClient.Razor
 
         public override async Task<IEnumerable<VSInternalDiagnosticReport>?> DiagnosticsAsync(DelegatedDiagnosticParams request, CancellationToken cancellationToken)
         {
-            if (!_documentManager.TryGetDocument(request.HostDocument.Uri, out var documentSnapshot))
-            {
-                return null;
-            }
-
-            if (!documentSnapshot.TryGetVirtualDocument<CSharpVirtualDocumentSnapshot>(out var csharpVirtualDocument))
-            {
-                throw new NotImplementedException("CSharpDocument couldn't be retrieved");
-            }
-
-            var csharpSynchronized = await _documentSynchronizer.TrySynchronizeVirtualDocumentAsync(request.HostDocument.Version, csharpVirtualDocument, rejectOnNewerParallelRequest: false, cancellationToken).ConfigureAwait(false);
-            if (!csharpSynchronized)
+            var (synchronized, csharpVirtualDocument) = await _documentSynchronizer.TrySynchronizeVirtualDocumentAsync<CSharpVirtualDocumentSnapshot>(
+                request.HostDocument.Version,
+                request.HostDocument.Uri,
+                cancellationToken).ConfigureAwait(false);
+            if (!synchronized)
             {
                 return null;
             }
